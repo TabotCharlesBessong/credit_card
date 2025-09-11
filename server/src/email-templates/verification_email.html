@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f6f9fc;
+      }
+      .wrapper {
+        width: 100%;
+        table-layout: fixed;
+        background-color: #f6f9fc;
+        padding-bottom: 60px;
+      }
+      .webkit {
+        max-width: 600px;
+        background-color: #ffffff;
+      }
+      .outer {
+        margin: 0 auto;
+        width: 100%;
+        max-width: 600px;
+        border-spacing: 0;
+        font-family: sans-serif;
+        color: #4a4a4a;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .header {
+        text-align: center;
+        padding: 20px;
+        border-bottom: 1px solid #ddd;
+      }
+      .header img {
+        max-width: 180px;
+      }
+      .content {
+        padding: 30px;
+      }
+      .content h2 {
+        font-size: 24px;
+        margin-bottom: 20px;
+        color: #222;
+      }
+      .content p {
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+      .code-box {
+        background-color: #e8ffeb;
+        border: 1px dashed #20dc49;
+        padding: 15px;
+        text-align: center;
+        margin: 20px 0;
+        border-radius: 5px;
+      }
+      .code {
+        font-size: 28px;
+        font-weight: bold;
+        letter-spacing: 5px;
+        color: #1f0654;
+      }
+      .button {
+        background-color: #20dc49;
+        color: white !important;
+        padding: 15px 25px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 10px 0;
+        cursor: pointer;
+        border-radius: 5px;
+      }
+      .footer {
+        background-color: #1f0654;
+        color: #ffffff;
+        text-align: center;
+        padding: 20px;
+        font-size: 12px;
+        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 8px;
+      }
+      .socials {
+        margin-top: 15px;
+      }
+      .socials a {
+        text-decoration: none;
+        margin: 0 10px;
+      }
+      .socials img {
+        width: 24px;
+        height: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <center class="wrapper">
+      <div class="webkit">
+        <table class="outer" align="center">
+          <!-- Header -->
+          <tr>
+            <td class="header">
+              <!-- Replace with your actual logo URL -->
+              <img src="https://lh3.googleusercontent.com/a/ACg8ocIdnSaAuklCX1hFrswHb1fh0AUD9l0wdoh434NGcBV_nV_rQEk=s576-c-no" alt="{{APP_NAME}} Logo" />
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td class="content">
+              <h2>Verify Your Email</h2>
+              <p>Hello {{USER_NAME}},</p>
+              <p>
+                Thank you for registering. Please use the code below or click the button to verify your email address.
+                This will expire in 24 hours.
+              </p>
+              <div class="code-box">
+                <p>Your verification code is:</p>
+                <div class="code">{{VERIFICATION_CODE}}</div>
+              </div>
+              <a href="{{VERIFICATION_URL}}" class="button">Verify Email Address</a>
+              <p>If you did not create this account, you can safely ignore this email.</p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td class="footer">
+              <p>© {{YEAR}} {{APP_NAME}}. All rights reserved.</p>
+              <div class="socials">
+                <!-- Replace with your actual social media links and icon URLs -->
+                <a href="https://twitter.com/yourhandle"
+                  ><img src="https://cdn-icons-png.flaticon.com/256/2504/2504839.png" alt="Twitter"
+                /></a>
+                <a href="https://facebook.com/yourpage"
+                  ><img src="https://static.vecteezy.com/system/resources/previews/018/930/698/non_2x/facebook-logo-facebook-icon-transparent-free-png.png" alt="Facebook"
+                /></a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </center>
+  </body>
+</html>

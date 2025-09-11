@@ -6,6 +6,8 @@ import User, { userSchema } from "../models/User";
 import logger from "../config/logger";
 import { Op } from "sequelize";
 import nodemailer from "nodemailer";
+import fs from "fs/promises";
+import path from "path";
 
 // Nodemailer transporter setup
 const transporter = nodemailer.createTransport({
@@ -19,18 +21,32 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const emailTemplatesPath = path.join(__dirname, "..", "email-templates");
+
+const compileEmailTemplate = async (templateName: string, context: Record<string, string>): Promise<string> => {
+  const templatePath = path.join(emailTemplatesPath, `${templateName}.html`);
+  let html = await fs.readFile(templatePath, "utf8");
+
+  for (const key in context) {
+    if (Object.prototype.hasOwnProperty.call(context, key)) {
+      html = html.replace(new RegExp(`{{${key}}}`, "g"), context[key]);
+    }
+  }
+  return html;
+};
 // Email service
-const sendEmail = async (to: string, subject: string, text: string) => {
+const sendEmail = async (to: string, subject: string, template: string, context: Record<string, string>) => {
   try {
+    const htmlContent = await compileEmailTemplate(template, context);
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to,
       subject,
-      text,
+      html: htmlContent,
     });
-    logger.info(`Email sent to ${to} with subject: ${subject}`);
+    logger.info(`Email sent to ${to} with subject: ${subject} using template ${template}.`);
   } catch (error) {
-    logger.error(`Failed to send email to ${to}:`, error);
+    logger.error(`Failed to send email to ${to} using template ${template}:`, error);
   }
 };
 
@@ -72,7 +88,14 @@ export const register = async (req: Request, res: Response) => {
     await sendEmail(
       user.email,
       "Account Verification",
-      `Your verification code is: ${verificationCode}`
+      "verification_email",
+      {
+        USER_NAME: user.firstName,
+        VERIFICATION_CODE: verificationCode,
+        VERIFICATION_URL: `${process.env.CLIENT_URL}/activate-account?email=${user.email}&code=${verificationCode}`,
+        APP_NAME: "Credit Card App",
+        YEAR: new Date().getFullYear().toString(),
+      }
     );
 
     logger.info(`User registered: ${user.email}`);
@@ -94,8 +117,9 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+    const lowerCaseEmail = email.toLowerCase();
 
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email: lowerCaseEmail } });
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials." });
     }
@@ -139,7 +163,10 @@ export const logout = async (req: Request, res: Response) => {
 export const forgotPassword = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ where: { email } });
+    const lowerCaseEmail = email.toLowerCase();
+    logger.info(`Forgot password request for email: ${lowerCaseEmail}`);
+    const user = await User.findOne({ where: { email: lowerCaseEmail } });
+    logger.info(`User found for forgot password: ${user ? user.email : "None"}`);
 
     if (!user) {
       return res.status(404).json({ message: "User not found." });
@@ -157,7 +184,13 @@ export const forgotPassword = async (req: Request, res: Response) => {
     await sendEmail(
       user.email,
       "Password Reset Request",
-      `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n        Please click on the following link, or paste this into your browser to complete the process:\n\n        http://localhost:3000/reset-password/${resetToken}\n\n        If you did not request this, please ignore this email and your password will remain unchanged.`
+      "reset_password_email",
+      {
+        USER_NAME: user.firstName,
+        RESET_PASSWORD_URL: `${process.env.CLIENT_URL}/reset-password/${resetToken}`,
+        APP_NAME: "Credit Card App",
+        YEAR: new Date().getFullYear().toString(),
+      }
     );
 
     logger.info(`Forgot password request for: ${user.email}`);
@@ -171,13 +204,14 @@ export const forgotPassword = async (req: Request, res: Response) => {
 export const resetPassword = async (req: Request, res: Response) => {
   try {
     const { token, newPassword } = req.body;
-
+    logger.info(`Reset password request for token: ${token}`);
     const user = await User.findOne({
       where: {
         resetPasswordToken: token,
         resetPasswordExpires: { [Op.gt]: new Date() }, // Token not expired
       },
     });
+    logger.info(`User found for reset password: ${user ? user.email : "None"}`);
 
     if (!user) {
       return res
@@ -205,7 +239,13 @@ export const resetPassword = async (req: Request, res: Response) => {
     await sendEmail(
       user.email,
       "Password Successfully Reset",
-      "Your password has been successfully reset."
+      "generic_success_email", // Assuming a generic success template for now
+      {
+        USER_NAME: user.firstName,
+        MESSAGE: "Your password has been successfully reset.",
+        APP_NAME: "Credit Card App",
+        YEAR: new Date().getFullYear().toString(),
+      }
     );
 
     logger.info(`Password reset for user: ${user.email}`);
@@ -219,9 +259,10 @@ export const resetPassword = async (req: Request, res: Response) => {
 export const activateAccount = async (req: Request, res: Response) => {
   try {
     const { email, code } = req.body;
+    const lowerCaseEmail = email.toLowerCase();
 
     const user = await User.findOne({
-      where: { email, verificationCode: code },
+      where: { email: lowerCaseEmail, verificationCode: code },
     });
 
     if (!user) {
@@ -243,7 +284,13 @@ export const activateAccount = async (req: Request, res: Response) => {
     await sendEmail(
       user.email,
       "Account Activated",
-      "Your account has been successfully activated."
+      "generic_success_email", // Assuming a generic success template for now
+      {
+        USER_NAME: user.firstName,
+        MESSAGE: "Your account has been successfully activated.",
+        APP_NAME: "Credit Card App",
+        YEAR: new Date().getFullYear().toString(),
+      }
     );
 
     logger.info(`Account activated for user: ${user.email}`);
