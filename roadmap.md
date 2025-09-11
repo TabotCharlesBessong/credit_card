@@ -30,7 +30,7 @@ Let's lay out a comprehensive roadmap, timeline, and strategy for developing you
 *   **1.2 User Model & Migrations:**
     *   Define `User` model (`src/models/User.ts`) with fields: `id`, `email`, `password` (hashed), `firstName`, `lastName`, `createdAt`, `updatedAt`.
     *   Set up Sequelize Migrations.
-    *   **Unit Tests:** Model validations (e.g., email format, password strength).
+    *   **Unit Tests:** Model validations (e.g., email format, password strength). Implement using Yup for schema validation.
     *   **Integration Tests:** Database migration runs successfully, model can create/read/update/delete records.
 *   **1.3 User Authentication (Registration & Login):**
     *   Implement user registration endpoint (`POST /api/auth/register`).
@@ -48,7 +48,7 @@ Let's lay out a comprehensive roadmap, timeline, and strategy for developing you
 *   **2.1 Credit Card Model:**
     *   Define `CreditCard` model (`src/models/CreditCard.ts`) with fields: `id`, `userId` (foreign key), `cardNumber` (encrypted), `cardHolderName`, `expiryMonth`, `expiryYear`, `cvv` (encrypted, or not stored at all - *security decision*), `creditLimit`, `currentBalance`, `status` (e.g., 'active', 'blocked').
     *   Establish `User` one-to-many `CreditCard` relationship.
-    *   **Unit Tests:** Model validations (e.g., expiry date, card number format).
+    *   **Unit Tests:** Model validations (e.g., expiry date, card number format). Implement using Yup for schema validation.
     *   **Integration Tests:** Can create/retrieve credit cards associated with a user.
 *   **2.2 Transaction Model:**
     *   Define `Transaction` model (`src/models/Transaction.ts`) with fields: `id`, `cardId` (foreign key), `amount`, `type` (e.g., 'debit', 'credit'), `description`, `merchant`, `transactionDate`.
@@ -130,89 +130,115 @@ Let's lay out a comprehensive roadmap, timeline, and strategy for developing you
 
 ---
 
-#### **Phase 3: Advanced Features & Refinement (Weeks 7-9)**
+#### **Phase 3: Payment Gateway Integrations & Advanced Features (Weeks 7-10)**
 
-**Objective:** Enhance functionality, improve user experience, and prepare for deployment.
+**Objective:** Integrate real-time payment solutions, enhance user experience, and prepare for deployment.
 
-**Week 7: Account Management & Security**
+**Week 7: Payment Gateway Setup & Mobile/Orange Money Integration**
 
-*   **7.1 User Profile Management:**
+*   **7.1 Payment Gateway Research & Selection:**
+    *   Research and select appropriate payment gateways for Mobile Money, Orange Money, and Bank transfers (e.g., local payment providers, aggregators).
+    *   **Testing Focus:** Understand API documentation, sandbox environment setup.
+*   **7.2 Mobile Money & Orange Money Top-up Integration:**
+    *   Implement backend services to interact with Mobile Money and Orange Money APIs for topping up user cards.
+    *   `POST /api/payments/topup/mobile-money`
+    *   `POST /api/payments/topup/orange-money`
+    *   **Unit Tests:** Payment service utility functions, API request/response handling.
+    *   **Integration Tests:** Successful top-ups, error handling for failed transactions.
+*   **7.3 Mobile Money & Orange Money Send Money Integration:**
+    *   Implement backend services to interact with Mobile Money and Orange Money APIs for sending money from user cards.
+    *   `POST /api/payments/send/mobile-money`
+    *   `POST /api/payments/send/orange-money`
+    *   **Unit Tests:** Payment service utility functions, API request/response handling.
+    *   **Integration Tests:** Successful money transfers, error handling.
+
+**Week 8: Bank Account Integration & Card Payments**
+
+*   **8.1 Bank Account Top-up Integration:**
+    *   Implement backend services for topping up user cards from bank accounts (e.g., direct debit, bank transfer APIs).
+    *   `POST /api/payments/topup/bank`
+    *   **Unit Tests:** Bank integration utility functions.
+    *   **Integration Tests:** Successful bank top-ups, reconciliation.
+*   **8.2 Bank Account Send Money Integration:**
+    *   Implement backend services for sending money from user cards to bank accounts.
+    *   `POST /api/payments/send/bank`
+    *   **Unit Tests:** Bank integration utility functions.
+    *   **Integration Tests:** Successful bank transfers.
+*   **8.3 Real Card Payment Processing:**
+    *   Integrate with a payment gateway (e.g., Stripe, PayPal, local processor) for real card payments.
+    *   Implement API endpoints for processing card payments.
+    *   `POST /api/payments/card/charge`
+    *   **Unit Tests:** Payment processing utility, secure token handling.
+    *   **Integration Tests:** Successful card charges, handling of declines.
+
+**Week 9: Mailing Service & Account Management Enhancements**
+
+*   **9.1 Mailing Service Integration (Nodemailer):**
+    *   Integrate Nodemailer for sending transactional emails (e.g., registration confirmation, password reset, transaction receipts).
+    *   **Unit Tests:** Email sending utility.
+    *   **Integration Tests:** Emails are sent successfully on relevant events.
+*   **9.2 User Profile Management:**
     *   Edit user profile (name, etc. - excluding password for now).
     *   `PUT /api/users/me`.
     *   **Integration Tests:** User profile can be updated.
-*   **7.2 Change Password:**
+*   **9.3 Change Password:**
     *   Implement a "Change Password" feature (requires old password).
     *   `PUT /api/auth/change-password`.
     *   **Unit Tests:** Password validation rules.
     *   **Integration Tests:** User can successfully change their password.
-*   **7.3 Session Management & Token Refresh (Optional but Recommended):**
+*   **9.4 Session Management & Token Refresh (Optional but Recommended):**
     *   Implement silent token refresh mechanism if using short-lived access tokens and longer-lived refresh tokens.
     *   **Integration Tests:** Token refresh works seamlessly.
-*   **7.4 Security Enhancements:**
+*   **9.5 Security Enhancements:**
     *   Rate limiting on authentication endpoints (backend).
     *   Input sanitization (backend).
     *   **Integration Tests:** Rate limiting prevents brute-force attempts.
 
-**Week 8: Transaction Functionality & UI/UX Improvements**
+**Week 10: Transaction Functionality & UI/UX Improvements**
 
-*   **8.1 Simulate Transaction (Frontend):**
+*   **10.1 Simulate Transaction (Frontend):**
     *   A simple screen to "make a purchase" for a selected card.
     *   Inputs: Amount, merchant, description.
     *   Calls `POST /api/credit-cards/:cardId/transactions`.
     *   **Integration Tests:** New transactions reflect correctly in the card's balance and transaction list.
-*   **8.2 Transaction Filtering/Sorting (Frontend):**
+*   **10.2 Transaction Filtering/Sorting (Frontend):**
     *   Add options to filter transactions by date range, type, or search by merchant.
     *   **Integration Tests:** Filtering/sorting works as expected.
-*   **8.3 User Interface Enhancements:**
+*   **10.3 User Interface Enhancements:**
     *   Polishing UI components, consistent styling.
     *   Loading indicators, empty states.
     *   Improved navigation flows.
     *   **E2E Tests:** Ensure smooth user flow through key features.
 
-**Week 9: Notifications & Deployment Preparation**
-
-*   **9.1 Push Notifications (Basic - Optional):**
-    *   Integrate Expo Push Notifications for transaction alerts or important updates.
-    *   Requires backend to send notifications.
-    *   **Integration Tests:** Push notifications are received.
-*   **9.2 Environment Variables:**
-    *   Configure environment variables for both backend and frontend (API URLs, secret keys).
-    *   **Integration Tests:** Application correctly uses environment variables.
-*   **9.3 Documentation & Code Cleanup:**
-    *   API documentation (e.g., Swagger/OpenAPI).
-    *   README files for both frontend and backend.
-    *   Remove unused code, refactor for clarity.
-    *   **Code Review:** Peer review or self-review for quality.
-
 ---
 
-#### **Phase 4: Testing, Optimization & Deployment (Week 10+)**
+#### **Phase 4: Testing, Optimization & Deployment (Week 11+)**
 
 **Objective:** Ensure application quality, performance, and successful launch.
 
-**Week 10: Comprehensive Testing & Performance**
+**Week 11: Comprehensive Testing & Performance**
 
-*   **10.1 End-to-End (E2E) Testing:**
-    *   Use tools like Detox or Appium for testing critical user flows (registration -> login -> view cards -> add card -> make transaction).
-*   **10.2 Performance Testing:**
+*   **11.1 End-to-End (E2E) Testing:**
+    *   Use tools like Detox or Appium for testing critical user flows (registration -> login -> view cards -> add card -> make transaction -> top-up -> send money).
+*   **11.2 Performance Testing:**
     *   Load testing for backend (e.g., using k6 or Apache JMeter) to identify bottlenecks.
     *   Frontend performance profiling (React Native Debugger, Flipper).
-*   **10.3 Security Audit:**
+*   **11.3 Security Audit:**
     *   Review code for common vulnerabilities (OWASP Top 10).
     *   Check for proper data encryption, access control.
-*   **10.4 Bug Fixing & Refinement:**
+*   **11.4 Bug Fixing & Refinement:**
     *   Address any discovered bugs or performance issues.
 
-**Week 11+: Deployment & Monitoring**
+**Week 12+: Deployment & Monitoring**
 
-*   **11.1 Backend Deployment:**
+*   **12.1 Backend Deployment:**
     *   Choose a cloud provider (e.g., Heroku, AWS, Google Cloud, DigitalOcean).
     *   Set up CI/CD pipeline for automated deployments.
-*   **11.2 Frontend Deployment:**
+*   **12.2 Frontend Deployment:**
     *   Build and deploy the React Native app to app stores (App Store, Google Play Store) via Expo build services.
-*   **11.3 Monitoring & Logging:**
+*   **12.3 Monitoring & Logging:**
     *   Set up logging and monitoring tools (e.g., Sentry, New Relic, CloudWatch) for both backend and frontend to track errors and performance in production.
-*   **11.4 Post-Launch Support & Iteration:**
+*   **12.4 Post-Launch Support & Iteration:**
     *   Gather user feedback, plan for future features and improvements.
 
 ---
@@ -231,7 +257,7 @@ Let's lay out a comprehensive roadmap, timeline, and strategy for developing you
     *   **Benefits:** Easier to understand, maintain, test, and scale individual parts of the application.
 
 3.  **Security Best Practices:**
-    *   **Input Validation:** On both client and server sides to prevent injections and unexpected data.
+    *   **Input Validation:** On both client and server sides to prevent injections and unexpected data. Utilize Yup for schema validation on the backend.
     *   **Password Hashing:** Always use strong hashing algorithms like `bcrypt`.
     *   **JWT Security:** Use short-lived access tokens with refresh tokens (if applicable), store tokens securely (HTTP-only cookies for web, `AsyncStorage` for mobile with caution).
     *   **Data Encryption:** Encrypt sensitive data at rest and in transit (HTTPS).
