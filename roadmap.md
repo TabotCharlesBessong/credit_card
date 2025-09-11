@@ -32,16 +32,23 @@ Let's lay out a comprehensive roadmap, timeline, and strategy for developing you
     *   Set up Sequelize Migrations.
     *   **Unit Tests:** Model validations (e.g., email format, password strength). Implement using Yup for schema validation.
     *   **Integration Tests:** Database migration runs successfully, model can create/read/update/delete records.
-*   **1.3 User Authentication (Registration & Login):**
+*   **1.3 User Authentication (Registration, Login, and Account Management):**
     *   Implement user registration endpoint (`POST /api/auth/register`).
     *   Implement user login endpoint (`POST /api/auth/login`).
+    *   Implement user logout endpoint (`POST /api/auth/logout`).
+    *   Implement forgot password endpoint (`POST /api/auth/forgot-password`) - **will use email service**.
+    *   Implement reset password endpoint (`POST /api/auth/reset-password`) - **will use email service**.
+    *   Implement account activation endpoint (`POST /api/auth/activate`) - **will send activation code (numbers and uppercase letters) via email**.
     *   Use `bcrypt` for password hashing and `jsonwebtoken` (JWT) for authentication.
-    *   **Unit Tests:** Password hashing utility, JWT token generation/verification utility.
-    *   **Integration Tests:** Successful user registration and login, handling of invalid credentials, duplicate email registration.
+    *   **Unit Tests:** Password hashing utility, JWT token generation/verification utility, email service integration.
+    *   **Integration Tests:** Successful user registration, login, logout, password reset, account activation, handling of invalid credentials, duplicate email registration.
 *   **1.4 Authentication Middleware:**
     *   Create a middleware (`src/middleware/auth.ts`) to protect routes using JWT.
     *   **Unit Tests:** Middleware correctly identifies valid/invalid tokens.
     *   **Integration Tests:** Protected routes deny access without a valid token, grant access with a valid token.
+*   **1.5 Automatic Sequelize Migrations & Logger Configuration:**
+    *   Configure Sequelize to run migrations automatically on application start (e.g., within `src/models/index.ts` using `sequelize.sync()`).
+    *   Implement a robust logging configuration for the backend application.
 
 **Week 2: Credit Card & Transaction Models, Relationships**
 

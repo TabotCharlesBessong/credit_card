@@ -1,5 +1,6 @@
 import { Sequelize } from "sequelize";
 // import * as config from "../config/config.json";
+
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -25,5 +26,14 @@ const sequelize = new Sequelize(
     logging: false, // Set to true to see SQL queries in console
   }
 );
+
+sequelize
+  .sync({ alter: true })
+  .then(() => {
+    console.log("Database & tables created!");
+  })
+  .catch((error) => {
+    console.error("Error syncing database:", error);
+  });
 
 export { sequelize };

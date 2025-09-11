@@ -1,10 +1,18 @@
 import express from "express";
 import { sequelize } from "./models"; // Import sequelize
+import logger from "./config/logger"; // Import logger
+import authRoutes from "./routes/auth"; // Import authentication routes
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
+
+// Routes
+app.use('/api/auth', authRoutes);
 
 app.get("/", (req, res) => {
   res.send("Credit Card Application Backend is running!");
@@ -14,12 +22,12 @@ app.get("/", (req, res) => {
 sequelize
   .authenticate()
   .then(() => {
-    console.log("Database connection has been established successfully.");
+    logger.info("Database connection has been established successfully.");
   })
   .catch((err) => {
-    console.error("Unable to connect to the database:", err);
+    logger.error("Unable to connect to the database:", err);
   });
 
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  logger.info(`Server is running on port ${port}`);
 });
