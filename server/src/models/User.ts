@@ -9,9 +9,6 @@ class User extends Model {
   public email!: string;
   public password!: string; // Hashed password
   public isVerified!: boolean; // For account activation
-  public verificationCode!: string | null; // For account activation
-  public resetPasswordToken!: string | null; // For password reset
-  public resetPasswordExpires!: Date | null; // For password reset
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -45,18 +42,6 @@ User.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
-    },
-    verificationCode: {
-      type: new DataTypes.STRING(128),
-      allowNull: true,
-    },
-    resetPasswordToken: {
-      type: new DataTypes.STRING(128),
-      allowNull: true,
-    },
-    resetPasswordExpires: {
-      type: DataTypes.DATE,
-      allowNull: true,
     },
   },
   {
