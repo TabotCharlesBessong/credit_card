@@ -16,39 +16,78 @@ const dbConfig = {
   dialect: (process.env.DB_DIALECT as string) || "postgres",
 };
 
+const initializeDatabase = async () => {
+  let sequelizeInstance: Sequelize;
+
+  if (process.env.NODE_ENV === 'test') {
+    sequelizeInstance = new Sequelize('sqlite::memory:', {
+      dialect: 'sqlite',
+      logging: false,
+    });
+  } else {
+    sequelizeInstance = new Sequelize(
+      dbConfig.database,
+      dbConfig.username,
+      dbConfig.password,
+      {
+        host: dbConfig.host,
+        dialect: "postgres",
+        logging: false,
+      }
+    );
+  }
+
+  // Initialize models
+  initUser(sequelizeInstance);
+  initToken(sequelizeInstance);
+  initCreditCard(sequelizeInstance);
+  initTransaction(sequelizeInstance);
+
+  // Define associations
+  associateUser(sequelizeInstance);
+  associateToken(sequelizeInstance);
+  associateCreditCard(sequelizeInstance);
+  associateTransaction(sequelizeInstance);
+
+  await sequelizeInstance.sync({ force: true }); // Use force: true for test environment to recreate tables
+  console.log("Database & tables created/synced!");
+
+  return sequelizeInstance;
+};
+
 // const env = process.env.NODE_ENV || "development";
 // const dbConfig = (config as any)[env];
 
-const sequelize = new Sequelize(
-  dbConfig.database,
-  dbConfig.username,
-  dbConfig.password,
-  {
-    host: dbConfig.host,
-    dialect: "postgres",
-    logging: false, // Set to true to see SQL queries in console
-  }
-);
+// Remove direct instantiation of sequelize at module level
+// const sequelize = new Sequelize(
+//   dbConfig.database,
+//   dbConfig.username,
+//   dbConfig.password,
+//   {
+//     host: dbConfig.host,
+//     dialect: "postgres",
+//     logging: false, // Set to true to see SQL queries in console
+//   }
+// );
 
-// Initialize models
-initUser(sequelize);
-initToken(sequelize);
-initCreditCard(sequelize);
-initTransaction(sequelize);
+// Remove direct model initialization and associations here
+// initUser(sequelize);
+// initToken(sequelize);
+// initCreditCard(sequelize);
+// initTransaction(sequelize);
+// associateUser(sequelize);
+// associateToken(sequelize);
+// associateCreditCard(sequelize);
+// associateTransaction(sequelize);
 
-// Define associations
-associateUser(sequelize);
-associateToken(sequelize);
-associateCreditCard(sequelize);
-associateTransaction(sequelize);
+// Remove direct sync call
+// sequelize
+//   .sync({ alter: true })
+//   .then(() => {
+//     console.log("Database & tables created!");
+//   })
+//   .catch((error) => {
+//     console.error("Error syncing database:", error);
+//   });
 
-sequelize
-  .sync({ alter: true })
-  .then(() => {
-    console.log("Database & tables created!");
-  })
-  .catch((error) => {
-    console.error("Error syncing database:", error);
-  });
-
-export { sequelize, User, Token, CreditCard, Transaction };
+export { User, Token, CreditCard, Transaction, initializeDatabase };

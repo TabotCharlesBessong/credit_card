@@ -11,23 +11,33 @@ import path from "path";
 import Token from "../models/Token"; // Import Token model
 import * as yup from "yup"; // Import yup for password validation
 
-// Nodemailer transporter setup
-const transporter = nodemailer.createTransport({
-  host: process.env.MAIL_HOST as string,
-  port: Number(process.env.MAIL_PORT as string),
-  secure: false,
-  service: "gmail",
-  auth: {
-    user: process.env.MAIL_USER as string,
-    pass: process.env.MAIL_PASS as string,
-  },
-});
+let transporter: nodemailer.Transporter | null = null;
+
+export const getMailTransporter = (): nodemailer.Transporter => {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: process.env.MAIL_HOST as string,
+      port: Number(process.env.MAIL_PORT as string),
+      secure: false,
+      service: "gmail",
+      auth: {
+        user: process.env.MAIL_USER as string,
+        pass: process.env.MAIL_PASS as string,
+      },
+    });
+  }
+  return transporter;
+};
 
 const emailTemplatesPath = path.join(__dirname, "..", "email-templates");
 
-const compileEmailTemplate = async (templateName: string, context: Record<string, string>): Promise<string> => {
+export const compileEmailTemplate = async (
+  templateName: string,
+  context: Record<string, string>,
+  fileSystem: typeof fs = fs // Inject fs for testing
+): Promise<string> => {
   const templatePath = path.join(emailTemplatesPath, `${templateName}.html`);
-  let html = await fs.readFile(templatePath, "utf8");
+  let html = await fileSystem.readFile(templatePath, "utf8");
 
   for (const key in context) {
     if (Object.prototype.hasOwnProperty.call(context, key)) {
@@ -40,7 +50,7 @@ const compileEmailTemplate = async (templateName: string, context: Record<string
 export const sendEmail = async (to: string, subject: string, template: string, context: Record<string, string>) => {
   try {
     const htmlContent = await compileEmailTemplate(template, context);
-    await transporter.sendMail({
+    await getMailTransporter().sendMail({
       from: process.env.EMAIL_FROM,
       to,
       subject,
@@ -52,8 +62,7 @@ export const sendEmail = async (to: string, subject: string, template: string, c
   }
 };
 
-// Utility to generate a verification code
-const generateVerificationCode = (): string => {
+export const generateVerificationCode = (): string => {
   const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let result = "";
   for (let i = 0; i < 6; i++) {

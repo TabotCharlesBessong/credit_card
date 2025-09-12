@@ -1,5 +1,5 @@
 import express from "express";
-import { sequelize } from "./models"; // Import sequelize
+import { initializeDatabase } from "./models"; // Import initializeDatabase
 import logger from "./config/logger"; // Import logger
 import authRoutes from "./routes/auth"; // Import authentication routes
 import cardRoutes from "./routes/cardRoutes"; // Import card routes
@@ -22,16 +22,23 @@ app.get("/", (req, res) => {
   res.send("Credit Card Application Backend is running!");
 });
 
-// Test database connection
-sequelize
-  .authenticate()
-  .then(() => {
+const startServer = async () => {
+  try {
+    const sequelize = await initializeDatabase();
+    await sequelize.authenticate();
     logger.info("Database connection has been established successfully.");
-  })
-  .catch((err) => {
-    logger.error("Unable to connect to the database:", err);
-  });
 
-app.listen(port, () => {
-  logger.info(`Server is running on port ${port}`);
-});
+    if (process.env.NODE_ENV !== 'test') {
+      app.listen(port, () => {
+        logger.info(`Server is running on port ${port}`);
+      });
+    }
+  } catch (err) {
+    logger.error("Unable to connect to the database or start server:", err);
+    process.exit(1);
+  }
+};
+
+startServer();
+
+export default app;
