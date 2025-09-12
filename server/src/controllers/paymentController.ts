@@ -7,6 +7,7 @@ import CreditCard from '../models/CreditCard';
 import User from '../models/User';
 import { TransactionStatus } from '../constants/enums';
 import { decryptCardNumber } from './cardController';
+import Decimal from 'decimal.js';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -20,6 +21,7 @@ const topUpSchema = yup.object().shape({
   cardId: yup.number().required('Card ID is required'),
   amount: yup.number().min(0.01, 'Amount must be positive').required('Amount is required'),
   description: yup.string().required('Description is required'),
+  recipientDetails: yup.string().required('Recipient details are required'),
 });
 
 const sendMoneySchema = yup.object().shape({
@@ -48,14 +50,14 @@ const sendTransactionEmail = async (userId: number, cardId: number, transaction:
         "transaction_status_email",
         {
           USER_NAME: user.firstName,
-          AMOUNT: transaction.amount.toFixed(2),
+          AMOUNT: new Decimal(transaction.amount).toFixed(2),
           CURRENCY: "USD", // Or dynamically fetch currency
           TRANSACTION_TYPE: transaction.type.toUpperCase(),
           CARD_TYPE: creditCard.cardType,
           LAST_FOUR_DIGITS: decryptCardNumber(creditCard.cardNumber).slice(-4),
           TRANSACTION_STATUS: status.toUpperCase(),
           DESCRIPTION: transaction.description,
-          CURRENT_BALANCE: creditCard.currentBalance.toFixed(2),
+          CURRENT_BALANCE: new Decimal(creditCard.currentBalance).toFixed(2),
           APP_NAME: "Credit Card App",
           YEAR: new Date().getFullYear().toString(),
         }
@@ -72,9 +74,9 @@ export const topUpMobileMoney = async (req: AuthenticatedRequest, res: Response)
       return res.status(401).json({ message: 'User not authenticated.' });
     }
     await topUpSchema.validate(req.body, { abortEarly: false });
-    const { cardId, amount, description } = req.body;
+    const { cardId, amount, description, recipientDetails } = req.body;
 
-    const result = await paymentService.topUpMobileMoney(amount, cardId, description);
+    const result = await paymentService.topUpMobileMoney(amount, cardId, description, recipientDetails);
 
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
@@ -98,9 +100,9 @@ export const topUpOrangeMoney = async (req: AuthenticatedRequest, res: Response)
       return res.status(401).json({ message: 'User not authenticated.' });
     }
     await topUpSchema.validate(req.body, { abortEarly: false });
-    const { cardId, amount, description } = req.body;
+    const { cardId, amount, description, recipientDetails } = req.body;
 
-    const result = await paymentService.topUpOrangeMoney(amount, cardId, description);
+    const result = await paymentService.topUpOrangeMoney(amount, cardId, description, recipientDetails);
 
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
@@ -124,9 +126,9 @@ export const topUpBankAccount = async (req: AuthenticatedRequest, res: Response)
       return res.status(401).json({ message: 'User not authenticated.' });
     }
     await topUpSchema.validate(req.body, { abortEarly: false });
-    const { cardId, amount, description } = req.body;
+    const { cardId, amount, description, recipientDetails } = req.body;
 
-    const result = await paymentService.topUpBankAccount(amount, cardId, description);
+    const result = await paymentService.topUpBankAccount(amount, cardId, description, recipientDetails);
 
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
@@ -152,7 +154,7 @@ export const sendToMobileMoney = async (req: AuthenticatedRequest, res: Response
     await sendMoneySchema.validate(req.body, { abortEarly: false });
     const { cardId, amount, description, recipientDetails } = req.body;
 
-    const result = await paymentService.sendToMobileMoney(amount, cardId, description);
+    const result = await paymentService.sendToMobileMoney(amount, cardId, description,recipientDetails);
 
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
@@ -178,7 +180,7 @@ export const sendToOrangeMoney = async (req: AuthenticatedRequest, res: Response
     await sendMoneySchema.validate(req.body, { abortEarly: false });
     const { cardId, amount, description, recipientDetails } = req.body;
 
-    const result = await paymentService.sendToOrangeMoney(amount, cardId, description);
+    const result = await paymentService.sendToOrangeMoney(amount, cardId, description, recipientDetails);
 
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
@@ -204,7 +206,7 @@ export const sendToBankAccount = async (req: AuthenticatedRequest, res: Response
     await sendMoneySchema.validate(req.body, { abortEarly: false });
     const { cardId, amount, description, recipientDetails } = req.body;
 
-    const result = await paymentService.sendToBankAccount(amount, cardId, description);
+    const result = await paymentService.sendToBankAccount(amount, cardId, description, recipientDetails);
 
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
