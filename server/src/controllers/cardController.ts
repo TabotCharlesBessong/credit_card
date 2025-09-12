@@ -4,6 +4,7 @@ import { CardStatus, CardType } from '../constants/enums';
 import logger from '../config/logger';
 import User from '../models/User'; // To get user details for email
 import { sendEmail } from './authController'; // Re-using sendEmail utility
+import { Decimal } from 'decimal.js'; // Added import for Decimal
 
 // Placeholder for encryption/decryption utilities (Week 1, 2.3 Data Encryption)
 export const encryptCardNumber = (cardNumber: string): string => {
@@ -32,7 +33,7 @@ export const createCreditCard = async (req: AuthenticatedRequest, res: Response)
     }
 
     await creditCardSchema.validate(req.body, { abortEarly: false });
-    const { cardNumber, cardHolderName, expiryMonth, expiryYear, creditLimit } = req.body;
+    const { cardNumber, expiryMonth, expiryYear, creditLimit } = req.body;
 
     // Encrypt card number before storing
     const encryptedCardNumber = encryptCardNumber(cardNumber);
@@ -41,6 +42,15 @@ export const createCreditCard = async (req: AuthenticatedRequest, res: Response)
     if (!user) {
       return res.status(404).json({ message: 'Authenticated user not found.' });
     }
+
+    // Check if a credit card with this number already exists
+    const existingCard = await CreditCard.findOne({ where: { cardNumber: encryptedCardNumber } });
+    if (existingCard) {
+      logger.warn(`Attempt to create duplicate card number for user ${req.user.email}.`);
+      return res.status(409).json({ message: 'Credit card with this number already exists.' });
+    }
+
+    const cardHolderName = `${user.firstName} ${user.lastName}`;
 
     const creditCard = await CreditCard.create({
       userId: req.user.id,
@@ -55,24 +65,29 @@ export const createCreditCard = async (req: AuthenticatedRequest, res: Response)
     });
 
     // Send new card created email
-    await sendEmail(
-      user.email,
-      "New Credit Card Created",
-      "new_card_created",
-      {
-        USER_NAME: user.firstName,
-        CARD_TYPE: creditCard.cardType,
-        LAST_FOUR_DIGITS: cardNumber.slice(-4),
-        CREDIT_LIMIT: creditCard.creditLimit.toFixed(2),
-        APP_NAME: "Credit Card App",
-        YEAR: new Date().getFullYear().toString(),
-      }
-    );
+    try {
+      await sendEmail(
+        user.email,
+        "New Credit Card Created",
+        "new_card_created",
+        {
+          USER_NAME: user.firstName,
+          CARD_TYPE: creditCard.cardType,
+          LAST_FOUR_DIGITS: cardNumber.slice(-4),
+          CREDIT_LIMIT: new Decimal(creditCard.creditLimit).toFixed(2),
+          APP_NAME: "Credit Card App",
+          YEAR: new Date().getFullYear().toString(),
+        }
+      );
+    } catch (emailError) {
+      logger.error("Error sending new card creation email:", emailError);
+      // Continue processing even if email sending fails
+    }
 
     logger.info(`Credit card created for user ${req.user.email}: ****${cardNumber.slice(-4)}`);
     res.status(201).json(creditCard);
   } catch (error: any) {
-    logger.error('Error creating credit card:', error);
+    logger.error('Error creating credit card:', error.message, error.stack);
     if (error.name === 'ValidationError') {
       return res.status(400).json({ errors: error.errors });
     }
@@ -86,12 +101,16 @@ export const getAllCreditCards = async (req: AuthenticatedRequest, res: Response
       return res.status(401).json({ message: 'User not authenticated.' });
     }
 
-    const creditCards = await CreditCard.findAll({ where: { userId: req.user.id } });
+    const creditCards = await CreditCard.findAll({
+      where: { userId: req.user.id },
+      include: [{ model: User, as: 'user' }],
+    });
 
     // Decrypt card numbers for display (careful with sensitive data on frontend)
     const decryptedCards = creditCards.map(card => ({
       ...card.toJSON(),
       cardNumber: decryptCardNumber(card.cardNumber).replace(/(\d{4}(?!$))/g, '**** '), // Mask all but last 4
+      user: card.user ? card.user.toJSON() : undefined, // Include user data
     }));
 
     logger.info(`Fetched all credit cards for user ${req.user.email}.`);
@@ -109,7 +128,10 @@ export const getCreditCardById = async (req: AuthenticatedRequest, res: Response
     }
 
     const { id } = req.params;
-    const creditCard = await CreditCard.findOne({ where: { id, userId: req.user.id } });
+    const creditCard = await CreditCard.findOne({
+      where: { id, userId: req.user.id },
+      include: [{ model: User, as: 'user' }],
+    });
 
     if (!creditCard) {
       return res.status(404).json({ message: 'Credit card not found.' });
@@ -119,6 +141,7 @@ export const getCreditCardById = async (req: AuthenticatedRequest, res: Response
     const decryptedCard = {
       ...creditCard.toJSON(),
       cardNumber: decryptCardNumber(creditCard.cardNumber).replace(/(\d{4}(?!$))/g, '**** '),
+      user: creditCard.user ? creditCard.user.toJSON() : undefined, // Include user data
     };
 
     logger.info(`Fetched credit card ${id} for user ${req.user.email}.`);
