@@ -1,9 +1,12 @@
 import { Sequelize } from "sequelize";
 // import * as config from "../config/config.json";
-
+import { initUser, associateUser, default as User } from "./User";
+import { initToken, associateToken, default as Token } from "./Token";
+import { initCreditCard, associateCreditCard, default as CreditCard } from "./CreditCard";
+import { initTransaction, associateTransaction, default as Transaction } from "./Transaction";
 import dotenv from "dotenv";
-
 dotenv.config();
+
 
 const dbConfig = {
   username: (process.env.DB_USER as string) || "postgres",
@@ -27,6 +30,18 @@ const sequelize = new Sequelize(
   }
 );
 
+// Initialize models
+initUser(sequelize);
+initToken(sequelize);
+initCreditCard(sequelize);
+initTransaction(sequelize);
+
+// Define associations
+associateUser(sequelize);
+associateToken(sequelize);
+associateCreditCard(sequelize);
+associateTransaction(sequelize);
+
 sequelize
   .sync({ alter: true })
   .then(() => {
@@ -36,4 +51,4 @@ sequelize
     console.error("Error syncing database:", error);
   });
 
-export { sequelize };
+export { sequelize, User, Token, CreditCard, Transaction };
