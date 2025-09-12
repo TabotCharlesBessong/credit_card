@@ -37,7 +37,7 @@ const compileEmailTemplate = async (templateName: string, context: Record<string
   return html;
 };
 // Email service
-const sendEmail = async (to: string, subject: string, template: string, context: Record<string, string>) => {
+export const sendEmail = async (to: string, subject: string, template: string, context: Record<string, string>) => {
   try {
     const htmlContent = await compileEmailTemplate(template, context);
     await transporter.sendMail({
