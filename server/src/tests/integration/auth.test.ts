@@ -6,7 +6,7 @@ import logger from '../../config/logger';
 // import { getSendMailMock } from '../../../__mocks__/nodemailer'; // Removed as we are directly spying on sendEmail
 import * as authControllerOriginal from '../../controllers/authController';
 
-jest.mock('../../config/logger');
+// jest.mock('../../config/logger'); // COMMENTED OUT: We need logs to debug
 // No need to mock nodemailer globally here, as we are directly spying on sendEmail
 
 let sequelizeInstance: Sequelize;
@@ -18,6 +18,7 @@ describe('Authentication Integration Tests', () => {
   beforeAll(async () => {
     process.env.NODE_ENV = 'test'; // Ensure test environment for in-memory SQLite
     sequelizeInstance = await initializeDatabase();
+    process.env.JWT_SECRET = 'test-jwt-secret'; // Set a secret for testing
 
     // Dynamically require authController after mocks are set up
     authController = require('../../controllers/authController');
@@ -178,6 +179,7 @@ describe('Authentication Integration Tests', () => {
       (authController.sendEmail as jest.Mock).mockClear();
       await request(app).post('/api/auth/register').send(unverifiedUserData);
       // sendMailMock.mockClear(); // Removed, handled by the beforeEach clear
+      (authController.sendEmail as jest.Mock).mockClear(); // Clear mock before login attempt
 
       const response = await request(app)
         .post('/api/auth/login')

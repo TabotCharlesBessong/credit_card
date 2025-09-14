@@ -138,18 +138,22 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     const lowerCaseEmail = email.toLowerCase();
+    logger.info(`Login attempt for email: ${lowerCaseEmail}`);
 
     const user = await User.findOne({ where: { email: lowerCaseEmail } });
     if (!user) {
+      logger.warn(`Login failed: User not found for email ${lowerCaseEmail}`);
       return res.status(401).json({ message: "Invalid credentials." });
     }
-
+    logger.info(`User found: ${user.email}. Checking password...`);
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      logger.warn(`Login failed: Invalid password for user ${lowerCaseEmail}`);
       return res.status(401).json({ message: "Invalid credentials." });
     }
-
+    logger.info(`Password is valid for user: ${user.email}. Checking verification status...`);
     if (!user.isVerified) {
+      logger.warn(`Login failed: Account not verified for user ${lowerCaseEmail}`);
       return res
         .status(401)
         .json({
@@ -157,7 +161,7 @@ export const login = async (req: Request, res: Response) => {
             "Account not verified. Please check your email for the verification code.",
         });
     }
-
+    logger.info(`Account verified for user: ${user.email}. Generating JWT...`);
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET as string,

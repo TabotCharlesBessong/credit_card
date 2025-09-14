@@ -20,8 +20,9 @@ const initializeDatabase = async () => {
   let sequelizeInstance: Sequelize;
 
   if (process.env.NODE_ENV === 'test') {
-    sequelizeInstance = new Sequelize('sqlite::memory:', {
+    sequelizeInstance = new Sequelize({
       dialect: 'sqlite',
+      storage: ':memory:', // Use :memory: for in-memory SQLite
       logging: false,
     });
   } else {

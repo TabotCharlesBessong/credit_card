@@ -8,9 +8,7 @@ module.exports = {
   coverageDirectory: 'coverage',
   coverageReporters: ['json', 'lcov', 'text'],
   setupFiles: ['dotenv/config'],
-  globals: {
-    'ts-jest': {
-      tsConfig: './server/tsconfig.json',
-    },
+  transform: {
+    '^.+\\.ts$': ['ts-jest', { tsconfig: './server/tsconfig.json' }],
   },
 };
