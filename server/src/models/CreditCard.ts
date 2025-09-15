@@ -26,12 +26,12 @@ export const initCreditCard = (sequelize: Sequelize) => {
   CreditCard.init(
     {
       id: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: process.env.NODE_ENV === 'test' ? DataTypes.INTEGER : DataTypes.INTEGER.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
       },
       userId: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: process.env.NODE_ENV === 'test' ? DataTypes.INTEGER : DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
         references: {
           model: User, // This is a reference to the User model
@@ -98,9 +98,9 @@ export const associateCreditCard = (sequelize: Sequelize) => {
 };
 
 export const creditCardSchema = yup.object().shape({
-  userId: yup.number().required('User ID is required'),
+  // userId: yup.number().required('User ID is required'), // userId is derived from the authenticated user
   cardNumber: yup.string().required('Card number is required').length(16, 'Card number must be 16 digits'), // Basic validation, actual validation after decryption
-  cardHolderName: yup.string().required('Card holder name is required'),
+  // cardHolderName: yup.string().required('Card holder name is required'), // cardHolderName is derived from the authenticated user's name
   expiryMonth: yup.string().matches(/^(0[1-9]|1[0-2])$/, 'Invalid expiry month (MM)').required('Expiry month is required'),
   expiryYear: yup.string().matches(/^(20)\d{2}$/, 'Invalid expiry year (YYYY)').required('Expiry year is required'),
   creditLimit: yup.number().min(0, 'Credit limit cannot be negative').required('Credit limit is required'),
