@@ -39,8 +39,8 @@ const FormikDatePicker: React.FC<FormikDatePickerProps> = ({ label, mode = 'date
         <DateTimePicker
           testID="dateTimePicker"
           value={currentValue}
-          mode={mode}
-          display={display}
+          mode={Platform.OS === 'android' && mode === 'datetime' ? 'date' : mode}
+          display={Platform.OS === 'android' && (display === 'calendar' || display === 'compact') ? 'default' : display}
           onChange={onChange}
         />
       )}
