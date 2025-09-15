@@ -60,7 +60,7 @@ const SignInScreen = () => {
               />
               {error && <ThemedText style={styles.errorText} type="caption">{error}</ThemedText>}
               <Button title={isLoading ? 'Logging In...' : 'Login'} onPress={() => handleSubmit()} disabled={isLoading} />
-              <Button title="Don't have an account? Sign Up" onPress={() => (router.push as any)('/auth/sign-up')} color="gray" />
+              <Button title="Don't have an account? Sign Up" onPress={() => (router.push as any)('/(auth)/sign-up')} color="gray" />
             </View>
           )}
         </Formik>

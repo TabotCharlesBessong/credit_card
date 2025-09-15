@@ -76,7 +76,7 @@ const SignUpScreen = () => {
               />
               {error && <ThemedText style={styles.errorText} type="caption">{error}</ThemedText>}
               <Button title={isLoading ? 'Registering...' : 'Register'} onPress={() => handleSubmit()} disabled={isLoading} />
-              <Button title="Already have an account? Sign In" onPress={() => router.push('/auth/sign-in')} color="gray" />
+              <Button title="Already have an account? Sign In" onPress={() => router.push('/(auth)/sign-in')} color="gray" />
             </View>
           )}
         </Formik>

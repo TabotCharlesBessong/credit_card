@@ -47,7 +47,7 @@ function RootLayoutContent() {
       } else if (token) {
         (router.replace as any)('/(tabs)');
       } else {
-        (router.replace as any)('/auth/sign-in');
+        (router.replace as any)('/(auth)/sign-in');
       }
     }
   }, [token, isOnboarded, isAppReady]);
@@ -64,7 +64,7 @@ function RootLayoutContent() {
         ) : token ? (
           <Stack.Screen name="(tabs)" />
         ) : (
-          <Stack.Screen name="auth" />
+          <Stack.Screen name="(auth)" />
         )}
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
