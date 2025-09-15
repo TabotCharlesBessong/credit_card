@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Button, Alert } from 'react-native';
+import { View, StyleSheet, Button, Alert } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
@@ -10,6 +10,7 @@ import Card from '@/components/ui/Card';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginUser } from '@/store/authSlice';
 import { AppDispatch, RootState } from '@/store';
+import { LoginRequest } from '@/services/auth';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().email('Invalid email').required('Email is required'),
@@ -20,10 +21,15 @@ const SignInScreen = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { isLoading, error } = useSelector((state: RootState) => state.auth);
 
-  const handleLogin = async (values: typeof LoginSchema.initialValues) => {
+  const initialValues: LoginRequest = {
+    email: '',
+    password: '',
+  };
+
+  const handleLogin = async (values: LoginRequest) => {
     const resultAction = await dispatch(loginUser(values));
     if (loginUser.fulfilled.match(resultAction)) {
-      router.replace('/(tabs)');
+      (router.replace as any)('/(tabs)'); // Cast to any to bypass type error
     } else if (loginUser.rejected.match(resultAction)) {
       Alert.alert('Login Failed', resultAction.payload as string);
     }
@@ -35,7 +41,7 @@ const SignInScreen = () => {
       <Card style={styles.card}>
         <ThemedText type="title" style={styles.title}>Sign In</ThemedText>
         <Formik
-          initialValues={{ email: '', password: '' }}
+          initialValues={initialValues}
           validationSchema={LoginSchema}
           onSubmit={handleLogin}
         >
@@ -53,8 +59,8 @@ const SignInScreen = () => {
                 placeholder="Enter your password"
               />
               {error && <ThemedText style={styles.errorText} type="caption">{error}</ThemedText>}
-              <Button title={isLoading ? 'Logging In...' : 'Login'} onPress={handleSubmit} disabled={isLoading} />
-              <Button title="Don't have an account? Sign Up" onPress={() => router.push('/auth/sign-up')} color="gray" />
+              <Button title={isLoading ? 'Logging In...' : 'Login'} onPress={() => handleSubmit()} disabled={isLoading} />
+              <Button title="Don't have an account? Sign Up" onPress={() => (router.push as any)('/auth/sign-up')} color="gray" />
             </View>
           )}
         </Formik>

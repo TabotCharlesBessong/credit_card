@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Button, Alert } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Button, Alert } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import Card from '@/components/ui/Card';
@@ -27,11 +27,11 @@ const ActivateAccountScreen = () => {
   useEffect(() => {
     if (message === 'Account activated successfully!' && !error) {
       Alert.alert('Success', message, [
-        { text: 'OK', onPress: () => router.replace('/auth/sign-in') },
+        { text: 'OK', onPress: () => (router.replace as any)('/auth/sign-in') },
       ]);
     } else if (error && activationAttempted) {
       Alert.alert('Error', error, [
-        { text: 'OK', onPress: () => router.replace('/auth/sign-up') },
+        { text: 'OK', onPress: () => (router.replace as any)('/auth/sign-up') },
       ]);
     }
   }, [message, error, activationAttempted]);
@@ -52,7 +52,7 @@ const ActivateAccountScreen = () => {
             {error && <ThemedText style={styles.errorText} type="caption">{error}</ThemedText>}
             {!token && <ThemedText style={styles.infoText}>No activation token found. Please check your email for the activation link.</ThemedText>}
             {(!isLoading && (error || !token)) && (
-              <Button title="Go to Sign Up" onPress={() => router.replace('/auth/sign-up')} />
+              <Button title="Go to Sign Up" onPress={() => (router.replace as any)('/auth/sign-up')} />
             )}
           </View>
         )}

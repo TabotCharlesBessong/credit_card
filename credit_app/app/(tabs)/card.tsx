@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import Card from '@/components/ui/Card';
 import AppLineChart from '@/components/charts/LineChart';
 import AppBarChart from '@/components/charts/BarChart';

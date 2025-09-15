@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Button, Alert } from 'react-native';
+import { View, StyleSheet, Button, Alert } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
@@ -9,6 +9,7 @@ import Card from '@/components/ui/Card';
 import { useDispatch, useSelector } from 'react-redux';
 import { resetPassword, clearMessages } from '@/store/authSlice';
 import { AppDispatch, RootState } from '@/store';
+import { ResetPasswordRequest } from '@/services/auth';
 
 const ResetPasswordSchema = Yup.object().shape({
   password: Yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
@@ -23,7 +24,13 @@ const ResetPasswordScreen = () => {
   const { token } = useLocalSearchParams();
   const [resetAttempted, setResetAttempted] = useState(false);
 
-  const handleResetPassword = async (values: typeof ResetPasswordSchema.initialValues) => {
+  const initialValues: ResetPasswordRequest & { confirmPassword: string } = {
+    token: '',
+    password: '',
+    confirmPassword: '',
+  };
+
+  const handleResetPassword = async (values: ResetPasswordRequest & { confirmPassword: string }) => {
     if (!token) {
       Alert.alert('Error', 'No reset token found.');
       return;
@@ -32,7 +39,7 @@ const ResetPasswordScreen = () => {
     const resultAction = await dispatch(resetPassword({ token: token as string, password: values.password, confirmPassword: values.confirmPassword }));
     if (resetPassword.fulfilled.match(resultAction)) {
       Alert.alert('Success', resultAction.payload as string, [
-        { text: 'OK', onPress: () => router.replace('/auth/sign-in') },
+        { text: 'OK', onPress: () => (router.replace as any)('/auth/sign-in') },
       ]);
     } else if (resetPassword.rejected.match(resultAction)) {
       Alert.alert('Error', resultAction.payload as string);
@@ -49,7 +56,7 @@ const ResetPasswordScreen = () => {
     // If there's no token, redirect to forgot password
     if (!token && !isLoading && resetAttempted) {
       Alert.alert('Invalid Token', 'No reset token found or it has expired. Please request a new password reset link.', [
-        { text: 'OK', onPress: () => router.replace('/auth/forgot-password') },
+        { text: 'OK', onPress: () => (router.replace as any)('/auth/forgot-password') },
       ]);
     }
   }, [token, isLoading, resetAttempted]);
@@ -66,7 +73,7 @@ const ResetPasswordScreen = () => {
         )}
         {token && (
           <Formik
-            initialValues={{ password: '', confirmPassword: '' }}
+            initialValues={initialValues}
             validationSchema={ResetPasswordSchema}
             onSubmit={handleResetPassword}
           >
@@ -84,7 +91,7 @@ const ResetPasswordScreen = () => {
                 />
                 {error && <ThemedText style={styles.errorText} type="caption">{error}</ThemedText>}
                 {message && <ThemedText style={styles.successText} type="caption">{message}</ThemedText>}
-                <Button title={isLoading ? 'Resetting...' : 'Reset Password'} onPress={handleSubmit} disabled={isLoading} />
+                <Button title={isLoading ? 'Resetting...' : 'Reset Password'} onPress={() => handleSubmit()} disabled={isLoading} />
               </View>
             )}
           </Formik>

@@ -3,10 +3,9 @@ import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import React, { useState, useEffect } from 'react';
-import { Provider } from 'react-redux';
+import { Provider , useDispatch, useSelector } from 'react-redux';
 import { store, RootState, AppDispatch } from '@/store';
 import { loadUserToken } from '@/store/authSlice';
-import { useDispatch, useSelector } from 'react-redux';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -44,11 +43,11 @@ function RootLayoutContent() {
   useEffect(() => {
     if (isAppReady) {
       if (!isOnboarded) {
-        router.replace('/onboarding');
+        (router.replace as any)('/onboarding');
       } else if (token) {
-        router.replace('/(tabs)');
+        (router.replace as any)('/(tabs)');
       } else {
-        router.replace('/auth/sign-in');
+        (router.replace as any)('/auth/sign-in');
       }
     }
   }, [token, isOnboarded, isAppReady]);

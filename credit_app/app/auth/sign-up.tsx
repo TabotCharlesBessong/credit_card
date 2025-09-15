@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Button, Alert } from 'react-native';
+import { View, StyleSheet, Button, Alert } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
@@ -10,6 +10,7 @@ import Card from '@/components/ui/Card';
 import { useDispatch, useSelector } from 'react-redux';
 import { registerUser } from '@/store/authSlice';
 import { AppDispatch, RootState } from '@/store';
+import { RegisterRequest } from '@/services/auth';
 
 const RegisterSchema = Yup.object().shape({
   firstName: Yup.string().required('First Name is required'),
@@ -25,11 +26,19 @@ const SignUpScreen = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { isLoading, error } = useSelector((state: RootState) => state.auth);
 
-  const handleRegister = async (values: typeof RegisterSchema.initialValues) => {
+  const initialValues: RegisterRequest & { confirmPassword: string } = {
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  };
+
+  const handleRegister = async (values: RegisterRequest & { confirmPassword: string }) => {
     const { firstName, lastName, email, password } = values; // Destructure to exclude confirmPassword
     const resultAction = await dispatch(registerUser({ firstName, lastName, email, password }));
     if (registerUser.fulfilled.match(resultAction)) {
-      router.replace('/(tabs)');
+      (router.replace as any)('/(tabs)'); // Cast to any to bypass type error
     } else if (registerUser.rejected.match(resultAction)) {
       Alert.alert('Registration Failed', resultAction.payload as string);
     }
@@ -41,7 +50,7 @@ const SignUpScreen = () => {
       <Card style={styles.card}>
         <ThemedText type="title" style={styles.title}>Sign Up</ThemedText>
         <Formik
-          initialValues={{ firstName: '', lastName: '', email: '', password: '', confirmPassword: '' }}
+          initialValues={initialValues}
           validationSchema={RegisterSchema}
           onSubmit={handleRegister}
         >
@@ -66,7 +75,7 @@ const SignUpScreen = () => {
                 placeholder="Confirm your password"
               />
               {error && <ThemedText style={styles.errorText} type="caption">{error}</ThemedText>}
-              <Button title={isLoading ? 'Registering...' : 'Register'} onPress={handleSubmit} disabled={isLoading} />
+              <Button title={isLoading ? 'Registering...' : 'Register'} onPress={() => handleSubmit()} disabled={isLoading} />
               <Button title="Already have an account? Sign In" onPress={() => router.push('/auth/sign-in')} color="gray" />
             </View>
           )}
