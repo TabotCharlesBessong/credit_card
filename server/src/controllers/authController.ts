@@ -8,24 +8,36 @@ import { Op } from "sequelize";
 import nodemailer from "nodemailer";
 import fs from "fs/promises";
 import path from "path";
+import Token from "../models/Token"; // Import Token model
+import * as yup from "yup"; // Import yup for password validation
 
-// Nodemailer transporter setup
-const transporter = nodemailer.createTransport({
-  host: process.env.MAIL_HOST as string,
-  port: Number(process.env.MAIL_PORT as string),
-  secure: false,
-  service: "gmail",
-  auth: {
-    user: process.env.MAIL_USER as string,
-    pass: process.env.MAIL_PASS as string,
-  },
-});
+let transporter: nodemailer.Transporter | null = null;
+
+export const getMailTransporter = (): nodemailer.Transporter => {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: process.env.MAIL_HOST as string,
+      port: Number(process.env.MAIL_PORT as string),
+      secure: false,
+      service: "gmail",
+      auth: {
+        user: process.env.MAIL_USER as string,
+        pass: process.env.MAIL_PASS as string,
+      },
+    });
+  }
+  return transporter;
+};
 
 const emailTemplatesPath = path.join(__dirname, "..", "email-templates");
 
-const compileEmailTemplate = async (templateName: string, context: Record<string, string>): Promise<string> => {
+export const compileEmailTemplate = async (
+  templateName: string,
+  context: Record<string, string>,
+  fileSystem: typeof fs = fs // Inject fs for testing
+): Promise<string> => {
   const templatePath = path.join(emailTemplatesPath, `${templateName}.html`);
-  let html = await fs.readFile(templatePath, "utf8");
+  let html = await fileSystem.readFile(templatePath, "utf8");
 
   for (const key in context) {
     if (Object.prototype.hasOwnProperty.call(context, key)) {
@@ -35,10 +47,10 @@ const compileEmailTemplate = async (templateName: string, context: Record<string
   return html;
 };
 // Email service
-const sendEmail = async (to: string, subject: string, template: string, context: Record<string, string>) => {
+export const sendEmail = async (to: string, subject: string, template: string, context: Record<string, string>) => {
   try {
     const htmlContent = await compileEmailTemplate(template, context);
-    await transporter.sendMail({
+    await getMailTransporter().sendMail({
       from: process.env.EMAIL_FROM,
       to,
       subject,
@@ -50,8 +62,7 @@ const sendEmail = async (to: string, subject: string, template: string, context:
   }
 };
 
-// Utility to generate a verification code
-const generateVerificationCode = (): string => {
+export const generateVerificationCode = (): string => {
   const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let result = "";
   for (let i = 0; i < 6; i++) {
@@ -64,8 +75,9 @@ export const register = async (req: Request, res: Response) => {
   try {
     await userSchema.validate(req.body, { abortEarly: false });
     const { firstName, lastName, email, password } = req.body;
+    const lowerCaseEmail = email.toLowerCase();
 
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ where: { email: lowerCaseEmail } });
     if (existingUser) {
       return res
         .status(409)
@@ -73,15 +85,23 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const verificationCode = generateVerificationCode();
 
     const user = await User.create({
       firstName,
       lastName,
-      email,
+      email: lowerCaseEmail,
       password: hashedPassword,
       isVerified: false,
-      verificationCode,
+    });
+
+    const verificationCode = generateVerificationCode();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+    await Token.create({
+      userId: user.id,
+      token: verificationCode,
+      type: 'email_verification',
+      expiresAt,
     });
 
     // Send verification email
@@ -118,18 +138,22 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     const lowerCaseEmail = email.toLowerCase();
+    logger.info(`Login attempt for email: ${lowerCaseEmail}`);
 
     const user = await User.findOne({ where: { email: lowerCaseEmail } });
     if (!user) {
+      logger.warn(`Login failed: User not found for email ${lowerCaseEmail}`);
       return res.status(401).json({ message: "Invalid credentials." });
     }
-
+    logger.info(`User found: ${user.email}. Checking password...`);
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      logger.warn(`Login failed: Invalid password for user ${lowerCaseEmail}`);
       return res.status(401).json({ message: "Invalid credentials." });
     }
-
+    logger.info(`Password is valid for user: ${user.email}. Checking verification status...`);
     if (!user.isVerified) {
+      logger.warn(`Login failed: Account not verified for user ${lowerCaseEmail}`);
       return res
         .status(401)
         .json({
@@ -137,11 +161,11 @@ export const login = async (req: Request, res: Response) => {
             "Account not verified. Please check your email for the verification code.",
         });
     }
-
+    logger.info(`Account verified for user: ${user.email}. Generating JWT...`);
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET as string,
-      { expiresIn: "1h" }
+      { expiresIn: "1d" }
     );
 
     logger.info(`User logged in: ${user.email}`);
@@ -172,12 +196,14 @@ export const forgotPassword = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found." });
     }
 
-    const resetToken = uuidv4(); // Generate a unique token
-    const resetExpires = new Date(Date.now() + 3600000); // 1 hour from now
+    const resetCode = generateVerificationCode(); // Generate a unique code
+    const expiresAt = new Date(Date.now() + 3600000); // 1 hour from now
 
-    await user.update({
-      resetPasswordToken: resetToken,
-      resetPasswordExpires: resetExpires,
+    await Token.create({
+      userId: user.id,
+      token: resetCode,
+      type: 'password_reset',
+      expiresAt,
     });
 
     // Send password reset email
@@ -187,14 +213,14 @@ export const forgotPassword = async (req: Request, res: Response) => {
       "reset_password_email",
       {
         USER_NAME: user.firstName,
-        RESET_PASSWORD_URL: `${process.env.CLIENT_URL}/reset-password/${resetToken}`,
+        RESET_PASSWORD_URL: `${process.env.CLIENT_URL}/reset-password?email=${user.email}&code=${resetCode}`,
         APP_NAME: "Credit Card App",
         YEAR: new Date().getFullYear().toString(),
       }
     );
 
     logger.info(`Forgot password request for: ${user.email}`);
-    res.status(200).json({ message: "Password reset email sent." });
+    res.status(200).json({ message: "Password reset code sent to your email." });
   } catch (error: any) {
     logger.error("Error during forgot password:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -203,43 +229,52 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
 export const resetPassword = async (req: Request, res: Response) => {
   try {
-    const { token, newPassword } = req.body;
-    logger.info(`Reset password request for token: ${token}`);
-    const user = await User.findOne({
+    const { email, code, newPassword } = req.body;
+    const lowerCaseEmail = email.toLowerCase();
+    logger.info(`Reset password request for email: ${lowerCaseEmail} with code: ${code}`);
+
+    const tokenEntry = await Token.findOne({
       where: {
-        resetPasswordToken: token,
-        resetPasswordExpires: { [Op.gt]: new Date() }, // Token not expired
+        token: code,
+        type: 'password_reset',
+        expiresAt: { [Op.gt]: new Date() }, // Token not expired
       },
+      include: [{ model: User, as: 'user', where: { email: lowerCaseEmail } }],
     });
+
+    if (!tokenEntry) {
+      return res.status(400).json({ message: "Password reset code is invalid or has expired." });
+    }
+
+    const user = tokenEntry.user;
     logger.info(`User found for reset password: ${user ? user.email : "None"}`);
 
     if (!user) {
-      return res
-        .status(400)
-        .json({ message: "Password reset token is invalid or has expired." });
+      // This case should ideally not happen if tokenEntry has a user, but good for safety
+      return res.status(404).json({ message: "User not found for this token." });
     }
 
-    // Validate new password using Yup (we need a separate schema for this or adjust userSchema)
-    // For now, a basic check
-    if (newPassword.length < 6) {
-      return res
-        .status(400)
-        .json({ message: "New password must be at least 6 characters." });
-    }
+    // Validate new password using Yup
+    const passwordSchema = yup.object().shape({
+      newPassword: yup.string().min(6, 'New password must be at least 6 characters').required('New password is required'),
+    });
+    await passwordSchema.validate({ newPassword }, { abortEarly: false });
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await user.update({
       password: hashedPassword,
-      resetPasswordToken: null,
-      resetPasswordExpires: null,
+      isVerified: true, // Also verify account if password reset is successful
     });
+
+    // Invalidate the token after use
+    await tokenEntry.destroy();
 
     // Send confirmation email
     await sendEmail(
       user.email,
       "Password Successfully Reset",
-      "generic_success_email", // Assuming a generic success template for now
+      "generic_success_email",
       {
         USER_NAME: user.firstName,
         MESSAGE: "Your password has been successfully reset.",
@@ -252,6 +287,9 @@ export const resetPassword = async (req: Request, res: Response) => {
     res.status(200).json({ message: "Password has been reset successfully." });
   } catch (error: any) {
     logger.error("Error during reset password:", error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ errors: error.errors });
+    }
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -260,15 +298,25 @@ export const activateAccount = async (req: Request, res: Response) => {
   try {
     const { email, code } = req.body;
     const lowerCaseEmail = email.toLowerCase();
+    logger.info(`Account activation request for email: ${lowerCaseEmail} with code: ${code}`);
 
-    const user = await User.findOne({
-      where: { email: lowerCaseEmail, verificationCode: code },
+    const tokenEntry = await Token.findOne({
+      where: {
+        token: code,
+        type: 'email_verification',
+        expiresAt: { [Op.gt]: new Date() }, // Token not expired
+      },
+      include: [{ model: User, as: 'user', where: { email: lowerCaseEmail } }],
     });
 
+    if (!tokenEntry) {
+      return res.status(400).json({ message: "Invalid email or verification code, or it has expired." });
+    }
+
+    const user = tokenEntry.user;
+
     if (!user) {
-      return res
-        .status(400)
-        .json({ message: "Invalid email or verification code." });
+      return res.status(404).json({ message: "User not found for this verification code." });
     }
 
     if (user.isVerified) {
@@ -277,14 +325,16 @@ export const activateAccount = async (req: Request, res: Response) => {
 
     await user.update({
       isVerified: true,
-      verificationCode: null,
     });
+
+    // Invalidate the token after use
+    await tokenEntry.destroy();
 
     // Send confirmation email
     await sendEmail(
       user.email,
       "Account Activated",
-      "generic_success_email", // Assuming a generic success template for now
+      "generic_success_email",
       {
         USER_NAME: user.firstName,
         MESSAGE: "Your account has been successfully activated.",

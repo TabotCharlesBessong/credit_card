@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f6f9fc;
+      }
+      .wrapper {
+        width: 100%;
+        table-layout: fixed;
+        background-color: #f6f9fc;
+        padding-bottom: 60px;
+      }
+      .webkit {
+        max-width: 600px;
+        background-color: #ffffff;
+      }
+      .outer {
+        margin: 0 auto;
+        width: 100%;
+        max-width: 600px;
+        border-spacing: 0;
+        font-family: sans-serif;
+        color: #4a4a4a;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .header {
+        text-align: center;
+        padding: 20px;
+        border-bottom: 1px solid #ddd;
+      }
+      .header img {
+        max-width: 180px;
+      }
+      .content {
+        padding: 30px;
+      }
+      .content h2 {
+        font-size: 24px;
+        margin-bottom: 20px;
+        color: #222;
+      }
+      .content p {
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+      .footer {
+        background-color: #1f0654;
+        color: #ffffff;
+        text-align: center;
+        padding: 20px;
+        font-size: 12px;
+        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 8px;
+      }
+      .socials {
+        margin-top: 15px;
+      }
+      .socials a {
+        text-decoration: none;
+        margin: 0 10px;
+      }
+      .socials img {
+        width: 24px;
+        height: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <center class="wrapper">
+      <div class="webkit">
+        <table class="outer" align="center">
+          <!-- Header -->
+          <tr>
+            <td class="header">
+              <!-- Replace with your actual logo URL -->
+              <img src="https://lh3.googleusercontent.com/a/ACg8ocIdnSaAuklCX1hFrswHb1fh0AUD9l0wdoh434NGcBV_nV_rQEk=s576-c-no" alt="{{APP_NAME}} Logo" />
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td class="content">
+              <h2>Hello {{USER_NAME}},</h2>
+              <p>This is an important alert regarding your {{CARD_TYPE}} credit card ending in ****{{LAST_FOUR_DIGITS}}.</p>
+              <p>We've detected unusual activity or your card is at risk of being blocked due to certain transactions or suspicious behavior.</p>
+              <p>Please review your recent transactions and contact support immediately if you did not authorize this activity.</p>
+              <p>Thank you for choosing {{APP_NAME}}.</p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td class="footer">
+              <p>© {{YEAR}} {{APP_NAME}}. All rights reserved.</p>
+              <div class="socials">
+                <!-- Replace with your actual social media links and icon URLs -->
+                <a href="https://twitter.com/yourhandle"
+                  ><img src="https://cdn-icons-png.flaticon.com/256/2504/2504839.png" alt="Twitter"
+                /></a>
+                <a href="https://facebook.com/yourpage"
+                  ><img src="https://static.vecteezy.com/system/resources/previews/018/930/698/non_2x/facebook-logo-facebook-icon-transparent-free-png.png" alt="Facebook"
+                /></a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </center>
+  </body>
+</html>

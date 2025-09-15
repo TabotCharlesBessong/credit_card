@@ -1,5 +1,4 @@
-import { DataTypes, Model } from 'sequelize';
-import { sequelize } from '.';
+import { DataTypes, Model, Sequelize } from 'sequelize';
 import * as yup from 'yup';
 
 class User extends Model {
@@ -9,61 +8,54 @@ class User extends Model {
   public email!: string;
   public password!: string; // Hashed password
   public isVerified!: boolean; // For account activation
-  public verificationCode!: string | null; // For account activation
-  public resetPasswordToken!: string | null; // For password reset
-  public resetPasswordExpires!: Date | null; // For password reset
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
 
-User.init(
-  {
-    id: {
-      type: DataTypes.INTEGER.UNSIGNED,
-      autoIncrement: true,
-      primaryKey: true,
+export const initUser = (sequelize: Sequelize) => {
+  User.init(
+    {
+      id: {
+        type: process.env.NODE_ENV === 'test' ? DataTypes.INTEGER : DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      firstName: {
+        type: new DataTypes.STRING(128),
+        allowNull: false,
+      },
+      lastName: {
+        type: new DataTypes.STRING(128),
+        allowNull: false,
+      },
+      email: {
+        type: new DataTypes.STRING(128),
+        allowNull: false,
+        unique: true,
+      },
+      password: {
+        type: new DataTypes.STRING(128),
+        allowNull: false,
+      },
+      isVerified: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
     },
-    firstName: {
-      type: new DataTypes.STRING(128),
-      allowNull: false,
-    },
-    lastName: {
-      type: new DataTypes.STRING(128),
-      allowNull: false,
-    },
-    email: {
-      type: new DataTypes.STRING(128),
-      allowNull: false,
-      unique: true,
-    },
-    password: {
-      type: new DataTypes.STRING(128),
-      allowNull: false,
-    },
-    isVerified: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-    },
-    verificationCode: {
-      type: new DataTypes.STRING(128),
-      allowNull: true,
-    },
-    resetPasswordToken: {
-      type: new DataTypes.STRING(128),
-      allowNull: true,
-    },
-    resetPasswordExpires: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
-  },
-  {
-    tableName: 'users',
-    sequelize, // passing the `sequelize` instance is required
-  }
-);
+    {
+      tableName: 'users',
+      sequelize, // passing the `sequelize` instance is required
+    }
+  );
+};
+
+export const associateUser = (sequelize: Sequelize) => {
+  // Define associations here if any, e.g., User.hasMany(SomeOtherModel)
+  // const { SomeOtherModel } = sequelize.models;
+  // User.hasMany(SomeOtherModel, { foreignKey: 'userId', as: 'someOtherModels' });
+};
 
 export const userSchema = yup.object().shape({
   firstName: yup.string().required('First name is required'),
