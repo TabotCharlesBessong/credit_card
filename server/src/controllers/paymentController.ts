@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as paymentService from '../services/paymentService';
+import { getTransactionsByCardId } from '../services/paymentService';
 import logger from '../config/logger';
 import * as yup from 'yup';
 import { sendEmail } from './authController';
@@ -246,6 +247,30 @@ export const processCardPayment = async (req: AuthenticatedRequest, res: Respons
     if (error.name === 'ValidationError') {
       return res.status(400).json({ errors: error.errors });
     }
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+export const fetchCardTransactions = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'User not authenticated.' });
+    }
+
+    const { cardId } = req.params;
+    const userId = req.user.id;
+
+    // Verify that the card belongs to the authenticated user
+    const creditCard = await CreditCard.findOne({ where: { id: cardId, userId } });
+    if (!creditCard) {
+      return res.status(404).json({ message: 'Credit card not found or does not belong to user.' });
+    }
+
+    const transactions = await getTransactionsByCardId(Number(cardId));
+
+    logger.info(`Fetched transactions for card ${cardId} for user ${req.user.email}.`);
+    res.status(200).json(transactions);
+  } catch (error: any) {
+    logger.error(`Error fetching transactions for card ${req.params.cardId}:`, error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

@@ -97,7 +97,8 @@ export const topUpMobileMoney = async (
   recipientDetails: string,
 ): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
   logger.info(`Attempting Mobile Money top-up for card ${cardId}, amount: ${amount}`);
-  return simulatePaymentGateway(TransactionType.TOP_UP, amount, cardId, description, 'Mobile Money', recipientDetails);
+  const result = await simulatePaymentGateway(TransactionType.TOP_UP, amount, cardId, description, 'Mobile Money', recipientDetails);
+  return { ...result, message: result.success ? 'Mobile money top-up successful.' : result.message };
 };
 
 export const topUpOrangeMoney = async (
@@ -107,7 +108,8 @@ export const topUpOrangeMoney = async (
   recipientDetails: string,
 ): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
   logger.info(`Attempting Orange Money top-up for card ${cardId}, amount: ${amount}`);
-  return simulatePaymentGateway(TransactionType.TOP_UP, amount, cardId, description, 'Orange Money', recipientDetails);
+  const result = await simulatePaymentGateway(TransactionType.TOP_UP, amount, cardId, description, 'Orange Money', recipientDetails);
+  return { ...result, message: result.success ? 'Orange money top-up successful.' : result.message };
 };
 
 export const topUpBankAccount = async (
@@ -117,7 +119,8 @@ export const topUpBankAccount = async (
   recipientDetails: string,
 ): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
   logger.info(`Attempting Bank Account top-up for card ${cardId}, amount: ${amount}`);
-  return simulatePaymentGateway(TransactionType.TOP_UP, amount, cardId, description, 'Bank Account', recipientDetails);
+  const result = await simulatePaymentGateway(TransactionType.TOP_UP, amount, cardId, description, 'Bank Account', recipientDetails);
+  return { ...result, message: result.success ? 'Bank account top-up successful.' : result.message };
 };
 
 export const sendToMobileMoney = async (
@@ -127,7 +130,8 @@ export const sendToMobileMoney = async (
   recipientDetails: string,
 ): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
   logger.info(`Attempting to send money to Mobile Money from card ${cardId}, amount: ${amount}`);
-  return simulatePaymentGateway(TransactionType.TRANSFER, amount, cardId, description, 'Mobile Money Transfer', recipientDetails);
+  const result = await simulatePaymentGateway(TransactionType.TRANSFER, amount, cardId, description, 'Mobile Money Transfer', recipientDetails);
+  return { ...result, message: result.success ? 'Money sent to Mobile Money successfully.' : result.message };
 };
 
 export const sendToOrangeMoney = async (
@@ -137,7 +141,8 @@ export const sendToOrangeMoney = async (
   recipientDetails: string,
 ): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
   logger.info(`Attempting to send money to Orange Money from card ${cardId}, amount: ${amount}`);
-  return simulatePaymentGateway(TransactionType.TRANSFER, amount, cardId, description, 'Orange Money Transfer', recipientDetails);
+  const result = await simulatePaymentGateway(TransactionType.TRANSFER, amount, cardId, description, 'Orange Money Transfer', recipientDetails);
+  return { ...result, message: result.success ? 'Money sent to Orange Money successfully.' : result.message };
 };
 
 export const sendToBankAccount = async (
@@ -147,7 +152,8 @@ export const sendToBankAccount = async (
   recipientDetails: string,
 ): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
   logger.info(`Attempting to send money to Bank Account from card ${cardId}, amount: ${amount}`);
-  return simulatePaymentGateway(TransactionType.TRANSFER, amount, cardId, description, 'Bank Account Transfer', recipientDetails);
+  const result = await simulatePaymentGateway(TransactionType.TRANSFER, amount, cardId, description, 'Bank Account Transfer', recipientDetails);
+  return { ...result, message: result.success ? 'Money sent to Bank Account successfully.' : result.message };
 };
 
 export const processCardPayment = async (
@@ -158,5 +164,19 @@ export const processCardPayment = async (
   recipientDetails?: string,
 ): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
   logger.info(`Attempting card payment for card ${cardId}, amount: ${amount} to ${merchant}`);
-  return simulatePaymentGateway(TransactionType.DEBIT, amount, cardId, description, merchant, recipientDetails);
+  const result = await simulatePaymentGateway(TransactionType.DEBIT, amount, cardId, description, merchant, recipientDetails);
+  return { ...result, message: result.success ? 'Card payment processed successfully.' : result.message };
+};
+
+export const getTransactionsByCardId = async (cardId: number): Promise<Transaction[]> => {
+  try {
+    const transactions = await Transaction.findAll({
+      where: { cardId },
+      order: [['transactionDate', 'DESC']],
+    });
+    return transactions;
+  } catch (error: any) {
+    logger.error(`Error fetching transactions for card ID ${cardId}:`, error);
+    throw new Error('Failed to fetch transactions.');
+  }
 };

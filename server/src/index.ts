@@ -5,6 +5,7 @@ import authRoutes from "./routes/auth"; // Import authentication routes
 import cardRoutes from "./routes/cardRoutes"; // Import card routes
 import paymentRoutes from "./routes/paymentRoutes"; // Import payment routes
 import dotenv from "dotenv";
+import { Server } from "http";
 
 dotenv.config();
 
@@ -22,23 +23,43 @@ app.get("/", (req, res) => {
   res.send("Credit Card Application Backend is running!");
 });
 
-const startServer = async () => {
+let server: Server;
+
+const startServer = async (): Promise<Server> => {
   try {
     const sequelize = await initializeDatabase();
     await sequelize.authenticate();
     logger.info("Database connection has been established successfully.");
 
-    if (process.env.NODE_ENV !== 'test') {
-      app.listen(port, () => {
+    return new Promise((resolve) => {
+      server = app.listen(port, () => {
         logger.info(`Server is running on port ${port}`);
+        resolve(server);
       });
-    }
+    });
   } catch (err) {
     logger.error("Unable to connect to the database or start server:", err);
     process.exit(1);
   }
 };
 
-startServer();
+const stopServer = async () => {
+  if (server) {
+    await new Promise<void>((resolve, reject) => {
+      server.close((err) => {
+        if (err) {
+          logger.error("Error stopping server:", err);
+          return reject(err);
+        }
+        logger.info("Server stopped.");
+        resolve();
+      });
+    });
+  }
+};
 
-export default app;
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+export { app, startServer, stopServer };
