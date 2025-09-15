@@ -11,23 +11,33 @@ import path from "path";
 import Token from "../models/Token"; // Import Token model
 import * as yup from "yup"; // Import yup for password validation
 
-// Nodemailer transporter setup
-const transporter = nodemailer.createTransport({
-  host: process.env.MAIL_HOST as string,
-  port: Number(process.env.MAIL_PORT as string),
-  secure: false,
-  service: "gmail",
-  auth: {
-    user: process.env.MAIL_USER as string,
-    pass: process.env.MAIL_PASS as string,
-  },
-});
+let transporter: nodemailer.Transporter | null = null;
+
+export const getMailTransporter = (): nodemailer.Transporter => {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: process.env.MAIL_HOST as string,
+      port: Number(process.env.MAIL_PORT as string),
+      secure: false,
+      service: "gmail",
+      auth: {
+        user: process.env.MAIL_USER as string,
+        pass: process.env.MAIL_PASS as string,
+      },
+    });
+  }
+  return transporter;
+};
 
 const emailTemplatesPath = path.join(__dirname, "..", "email-templates");
 
-const compileEmailTemplate = async (templateName: string, context: Record<string, string>): Promise<string> => {
+export const compileEmailTemplate = async (
+  templateName: string,
+  context: Record<string, string>,
+  fileSystem: typeof fs = fs // Inject fs for testing
+): Promise<string> => {
   const templatePath = path.join(emailTemplatesPath, `${templateName}.html`);
-  let html = await fs.readFile(templatePath, "utf8");
+  let html = await fileSystem.readFile(templatePath, "utf8");
 
   for (const key in context) {
     if (Object.prototype.hasOwnProperty.call(context, key)) {
@@ -37,10 +47,10 @@ const compileEmailTemplate = async (templateName: string, context: Record<string
   return html;
 };
 // Email service
-const sendEmail = async (to: string, subject: string, template: string, context: Record<string, string>) => {
+export const sendEmail = async (to: string, subject: string, template: string, context: Record<string, string>) => {
   try {
     const htmlContent = await compileEmailTemplate(template, context);
-    await transporter.sendMail({
+    await getMailTransporter().sendMail({
       from: process.env.EMAIL_FROM,
       to,
       subject,
@@ -52,8 +62,7 @@ const sendEmail = async (to: string, subject: string, template: string, context:
   }
 };
 
-// Utility to generate a verification code
-const generateVerificationCode = (): string => {
+export const generateVerificationCode = (): string => {
   const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let result = "";
   for (let i = 0; i < 6; i++) {
@@ -129,18 +138,22 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     const lowerCaseEmail = email.toLowerCase();
+    logger.info(`Login attempt for email: ${lowerCaseEmail}`);
 
     const user = await User.findOne({ where: { email: lowerCaseEmail } });
     if (!user) {
+      logger.warn(`Login failed: User not found for email ${lowerCaseEmail}`);
       return res.status(401).json({ message: "Invalid credentials." });
     }
-
+    logger.info(`User found: ${user.email}. Checking password...`);
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      logger.warn(`Login failed: Invalid password for user ${lowerCaseEmail}`);
       return res.status(401).json({ message: "Invalid credentials." });
     }
-
+    logger.info(`Password is valid for user: ${user.email}. Checking verification status...`);
     if (!user.isVerified) {
+      logger.warn(`Login failed: Account not verified for user ${lowerCaseEmail}`);
       return res
         .status(401)
         .json({
@@ -148,11 +161,11 @@ export const login = async (req: Request, res: Response) => {
             "Account not verified. Please check your email for the verification code.",
         });
     }
-
+    logger.info(`Account verified for user: ${user.email}. Generating JWT...`);
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET as string,
-      { expiresIn: "1h" }
+      { expiresIn: "1d" }
     );
 
     logger.info(`User logged in: ${user.email}`);
