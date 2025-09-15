@@ -19,4 +19,6 @@ router.post('/send/bank-account', paymentController.sendToBankAccount);
 // Card payment route
 router.post('/card/charge', paymentController.processCardPayment);
 
+router.get('/credit-cards/:cardId/transactions', paymentController.fetchCardTransactions); // New route
+
 export default router;

@@ -18,12 +18,12 @@ export const initToken = (sequelize: Sequelize) => {
   Token.init(
     {
       id: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: process.env.NODE_ENV === 'test' ? DataTypes.INTEGER : DataTypes.INTEGER.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
       },
       userId: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: process.env.NODE_ENV === 'test' ? DataTypes.INTEGER : DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
         references: {
           model: User, // This is a reference to the User model

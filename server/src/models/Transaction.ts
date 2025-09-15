@@ -24,12 +24,12 @@ export const initTransaction = (sequelize: Sequelize) => {
   Transaction.init(
     {
       id: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: process.env.NODE_ENV === 'test' ? DataTypes.INTEGER : DataTypes.INTEGER.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
       },
       cardId: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: process.env.NODE_ENV === 'test' ? DataTypes.INTEGER : DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
         references: {
           model: CreditCard, // This is a reference to the CreditCard model

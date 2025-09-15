@@ -24,7 +24,7 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
       logger.warn(`Authentication failed: ${err.message}`);
       return res.status(403).json({ message: 'Invalid or expired token.' });
     }
-    req.user = user;
+    req.user = { id: user.id, email: user.email };
     next();
   });
 };
