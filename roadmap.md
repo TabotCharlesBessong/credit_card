@@ -1,0 +1,298 @@
+Excellent! Having the Expo app set up already is a great head start. Integrating testing from the beginning is also a fantastic strategy for building a robust and maintainable application.
+
+Let's lay out a comprehensive roadmap, timeline, and strategy for developing your credit card application, incorporating unit and integration testing from the start.
+
+---
+
+### Credit Card Application Development Roadmap
+
+**Goal:** Build a secure, reliable, and scalable credit card application (backend API and React Native mobile app).
+
+**Core Principles:**
+*   **Test-Driven Development (TDD) / Test-First Approach:** Write tests before or alongside feature implementation.
+*   **Modular Design:** Separate concerns clearly for easier maintenance and scaling.
+*   **Security First:** Implement best practices for data protection and authentication.
+*   **Iterative Development:** Build features in small, testable increments.
+
+---
+
+#### **Phase 1: Backend Foundation (Weeks 1-3)**
+
+**Objective:** Establish a robust and secure API with core user and credit card management functionalities.
+
+**Week 1: Database, Models & Core Authentication**
+
+*   **1.1 Database & ORM Setup (Completed):**
+    *   PostgreSQL database setup.
+    *   Sequelize ORM configuration (`src/models/index.ts`, `src/config/config.json`).
+    *   Basic Express.js server (`src/index.ts`).
+    *   **Testing Focus:** Basic server connectivity, database connection.
+*   **1.2 User Model & Migrations:**
+    *   Define `User` model (`src/models/User.ts`) with fields: `id`, `email`, `password` (hashed), `firstName`, `lastName`, `createdAt`, `updatedAt`.
+    *   Set up Sequelize Migrations.
+    *   **Unit Tests:** Model validations (e.g., email format, password strength). Implement using Yup for schema validation.
+    *   **Integration Tests:** Database migration runs successfully, model can create/read/update/delete records.
+*   **1.3 User Authentication (Registration, Login, and Account Management):**
+    *   Implement user registration endpoint (`POST /api/auth/register`).
+    *   Implement user login endpoint (`POST /api/auth/login`).
+    *   Implement user logout endpoint (`POST /api/auth/logout`).
+    *   Implement forgot password endpoint (`POST /api/auth/forgot-password`) - **will use email service**.
+    *   Implement reset password endpoint (`POST /api/auth/reset-password`) - **will use email service**.
+    *   Implement account activation endpoint (`POST /api/auth/activate`) - **will send activation code (numbers and uppercase letters) via email**.
+    *   Use `bcrypt` for password hashing and `jsonwebtoken` (JWT) for authentication.
+    *   **Unit Tests:** Password hashing utility, JWT token generation/verification utility, email service integration.
+    *   **Integration Tests:** Successful user registration, login, logout, password reset, account activation, handling of invalid credentials, duplicate email registration.
+*   **1.4 Authentication Middleware:**
+    *   Create a middleware (`src/middleware/auth.ts`) to protect routes using JWT.
+    *   **Unit Tests:** Middleware correctly identifies valid/invalid tokens.
+    *   **Integration Tests:** Protected routes deny access without a valid token, grant access with a valid token.
+*   **1.5 Automatic Sequelize Migrations & Logger Configuration:**
+    *   Configure Sequelize to run migrations automatically on application start (e.g., within `src/models/index.ts` using `sequelize.sync()`).
+    *   Implement a robust logging configuration for the backend application.
+
+**Week 2: Credit Card & Transaction Models, Relationships**
+
+*   **2.1 Credit Card Model:**
+    *   Define `CreditCard` model (`src/models/CreditCard.ts`) with fields: `id`, `userId` (foreign key), `cardNumber` (encrypted), `cardHolderName`, `expiryMonth`, `expiryYear`, `cvv` (encrypted, or not stored at all - *security decision*), `creditLimit`, `currentBalance`, `status` (e.g., 'active', 'blocked').
+    *   Establish `User` one-to-many `CreditCard` relationship.
+    *   **Unit Tests:** Model validations (e.g., expiry date, card number format). Implement using Yup for schema validation.
+    *   **Integration Tests:** Can create/retrieve credit cards associated with a user.
+*   **2.2 Transaction Model:**
+    *   Define `Transaction` model (`src/models/Transaction.ts`) with fields: `id`, `cardId` (foreign key), `amount`, `type` (e.g., 'debit', 'credit'), `description`, `merchant`, `transactionDate`.
+    *   Establish `CreditCard` one-to-many `Transaction` relationship.
+    *   **Unit Tests:** Model validations (e.g., amount is positive).
+    *   **Integration Tests:** Can record transactions for a specific credit card.
+*   **2.3 Data Encryption (Sensitive Fields):**
+    *   Implement encryption/decryption utilities for sensitive fields like `cardNumber`, `cvv` (if stored). Use libraries like `crypto` or `aes-256-gcm`.
+    *   **Unit Tests:** Encryption/decryption round-trip, handling of different data types.
+
+**Week 3: API Endpoints & Error Handling**
+
+*   **3.1 User & Credit Card Management Endpoints:**
+    *   `GET /api/users/me` (get authenticated user's profile).
+    *   `GET /api/credit-cards` (get all cards for authenticated user).
+    *   `POST /api/credit-cards` (add a new credit card).
+    *   `GET /api/credit-cards/:id` (get specific card details).
+    *   `PUT /api/credit-cards/:id/block` (block/unblock a card).
+    *   **Integration Tests:** All CRUD operations for users and credit cards work correctly, access control is enforced.
+*   **3.2 Transaction Endpoints:**
+    *   `GET /api/credit-cards/:cardId/transactions` (get transactions for a specific card).
+    *   `POST /api/credit-cards/:cardId/transactions` (record a new transaction - simulating a purchase).
+    *   **Integration Tests:** Transaction listing and creation, balance updates upon transaction.
+*   **3.3 Global Error Handling:**
+    *   Implement centralized error handling middleware for Express.js to catch and format errors consistently (e.g., 400 Bad Request, 401 Unauthorized, 404 Not Found, 500 Internal Server Error).
+    *   **Unit Tests:** Error handling utility functions.
+    *   **Integration Tests:** Endpoints return correct error codes and messages for invalid inputs or unauthorized access.
+
+---
+
+#### **Phase 2: Frontend Development - Core Features (Weeks 4-6)**
+
+**Objective:** Build the primary user interface and connect it to the backend API.
+
+**Week 4: Authentication & Basic Navigation**
+
+*   **4.1 Expo Router Setup (Completed):**
+    *   Verify `expo-router` is correctly configured for navigation.
+    *   **Testing Focus:** Basic navigation between placeholder screens.
+*   **4.2 User Authentication UI:**
+    *   Login screen (`/login`).
+    *   Registration screen (`/register`).
+    *   Implement API calls for authentication.
+    *   Store JWT token securely (e.g., `AsyncStorage`).
+    *   **Unit Tests:** Form validation logic (client-side), secure storage utility.
+    *   **Integration Tests:** User can register, log in, and token is stored/retrieved. Protected routes are inaccessible without login.
+*   **4.3 Home/Dashboard Screen:**
+    *   A simple dashboard displaying a welcome message and navigation to other features.
+    *   **Integration Tests:** Dashboard loads correctly after login.
+
+**Week 5: Credit Card Listing & Details**
+
+*   **5.1 Credit Card List Screen:**
+    *   Display a list of the user's credit cards.
+    *   Fetch data from `GET /api/credit-cards`.
+    *   Implement UI components for a credit card summary (card number masked, balance).
+    *   **Unit Tests:** UI components for card display.
+    *   **Integration Tests:** Card list loads correctly, handles empty state.
+*   **5.2 Credit Card Detail Screen:**
+    *   Show detailed information for a selected card.
+    *   Fetch data from `GET /api/credit-cards/:id`.
+    *   Option to block/unblock the card (calling `PUT /api/credit-cards/:id/block`).
+    *   **Unit Tests:** UI components for card details.
+    *   **Integration Tests:** Detail screen loads, blocking functionality works.
+
+**Week 6: Add New Card & Transactions List**
+
+*   **6.1 Add New Credit Card Screen:**
+    *   Form for adding a new credit card.
+    *   Input validation (client-side).
+    *   Send data to `POST /api/credit-cards`.
+    *   **Unit Tests:** Form validation logic.
+    *   **Integration Tests:** New card can be successfully added and appears in the list.
+*   **6.2 Transactions List for a Card:**
+    *   Display a list of transactions for a specific credit card on its detail screen or a dedicated transaction screen.
+    *   Fetch data from `GET /api/credit-cards/:cardId/transactions`.
+    *   **Unit Tests:** Transaction item display component.
+    *   **Integration Tests:** Transactions load correctly for a selected card.
+
+---
+
+#### **Phase 3: Payment Gateway Integrations & Advanced Features (Weeks 7-10)**
+
+**Objective:** Integrate real-time payment solutions, enhance user experience, and prepare for deployment.
+
+**Week 7: Payment Gateway Setup & Mobile/Orange Money Integration**
+
+*   **7.1 Payment Gateway Research & Selection:**
+    *   Research and select appropriate payment gateways for Mobile Money, Orange Money, and Bank transfers (e.g., local payment providers, aggregators).
+    *   **Testing Focus:** Understand API documentation, sandbox environment setup.
+*   **7.2 Mobile Money & Orange Money Top-up Integration:**
+    *   Implement backend services to interact with Mobile Money and Orange Money APIs for topping up user cards.
+    *   `POST /api/payments/topup/mobile-money`
+    *   `POST /api/payments/topup/orange-money`
+    *   **Unit Tests:** Payment service utility functions, API request/response handling.
+    *   **Integration Tests:** Successful top-ups, error handling for failed transactions.
+*   **7.3 Mobile Money & Orange Money Send Money Integration:**
+    *   Implement backend services to interact with Mobile Money and Orange Money APIs for sending money from user cards.
+    *   `POST /api/payments/send/mobile-money`
+    *   `POST /api/payments/send/orange-money`
+    *   **Unit Tests:** Payment service utility functions, API request/response handling.
+    *   **Integration Tests:** Successful money transfers, error handling.
+
+**Week 8: Bank Account Integration & Card Payments**
+
+*   **8.1 Bank Account Top-up Integration:**
+    *   Implement backend services for topping up user cards from bank accounts (e.g., direct debit, bank transfer APIs).
+    *   `POST /api/payments/topup/bank`
+    *   **Unit Tests:** Bank integration utility functions.
+    *   **Integration Tests:** Successful bank top-ups, reconciliation.
+*   **8.2 Bank Account Send Money Integration:**
+    *   Implement backend services for sending money from user cards to bank accounts.
+    *   `POST /api/payments/send/bank`
+    *   **Unit Tests:** Bank integration utility functions.
+    *   **Integration Tests:** Successful bank transfers.
+*   **8.3 Real Card Payment Processing:**
+    *   Integrate with a payment gateway (e.g., Stripe, PayPal, local processor) for real card payments.
+    *   Implement API endpoints for processing card payments.
+    *   `POST /api/payments/card/charge`
+    *   **Unit Tests:** Payment processing utility, secure token handling.
+    *   **Integration Tests:** Successful card charges, handling of declines.
+
+**Week 9: Mailing Service & Account Management Enhancements**
+
+*   **9.1 Mailing Service Integration (Nodemailer):**
+    *   Integrate Nodemailer for sending transactional emails (e.g., registration confirmation, password reset, transaction receipts).
+    *   **Unit Tests:** Email sending utility.
+    *   **Integration Tests:** Emails are sent successfully on relevant events.
+*   **9.2 User Profile Management:**
+    *   Edit user profile (name, etc. - excluding password for now).
+    *   `PUT /api/users/me`.
+    *   **Integration Tests:** User profile can be updated.
+*   **9.3 Change Password:**
+    *   Implement a "Change Password" feature (requires old password).
+    *   `PUT /api/auth/change-password`.
+    *   **Unit Tests:** Password validation rules.
+    *   **Integration Tests:** User can successfully change their password.
+*   **9.4 Session Management & Token Refresh (Optional but Recommended):**
+    *   Implement silent token refresh mechanism if using short-lived access tokens and longer-lived refresh tokens.
+    *   **Integration Tests:** Token refresh works seamlessly.
+*   **9.5 Security Enhancements:**
+    *   Rate limiting on authentication endpoints (backend).
+    *   Input sanitization (backend).
+    *   **Integration Tests:** Rate limiting prevents brute-force attempts.
+
+**Week 10: Transaction Functionality & UI/UX Improvements**
+
+*   **10.1 Simulate Transaction (Frontend):**
+    *   A simple screen to "make a purchase" for a selected card.
+    *   Inputs: Amount, merchant, description.
+    *   Calls `POST /api/credit-cards/:cardId/transactions`.
+    *   **Integration Tests:** New transactions reflect correctly in the card's balance and transaction list.
+*   **10.2 Transaction Filtering/Sorting (Frontend):**
+    *   Add options to filter transactions by date range, type, or search by merchant.
+    *   **Integration Tests:** Filtering/sorting works as expected.
+*   **10.3 User Interface Enhancements:**
+    *   Polishing UI components, consistent styling.
+    *   Loading indicators, empty states.
+    *   Improved navigation flows.
+    *   **E2E Tests:** Ensure smooth user flow through key features.
+
+---
+
+#### **Phase 4: Testing, Optimization & Deployment (Week 11+)**
+
+**Objective:** Ensure application quality, performance, and successful launch.
+
+**Week 11: Comprehensive Testing & Performance**
+
+*   **11.1 End-to-End (E2E) Testing:**
+    *   Use tools like Detox or Appium for testing critical user flows (registration -> login -> view cards -> add card -> make transaction -> top-up -> send money).
+*   **11.2 Performance Testing:**
+    *   Load testing for backend (e.g., using k6 or Apache JMeter) to identify bottlenecks.
+    *   Frontend performance profiling (React Native Debugger, Flipper).
+*   **11.3 Security Audit:**
+    *   Review code for common vulnerabilities (OWASP Top 10).
+    *   Check for proper data encryption, access control.
+*   **11.4 Bug Fixing & Refinement:**
+    *   Address any discovered bugs or performance issues.
+
+**Week 12+: Deployment & Monitoring**
+
+*   **12.1 Backend Deployment:**
+    *   Choose a cloud provider (e.g., Heroku, AWS, Google Cloud, DigitalOcean).
+    *   Set up CI/CD pipeline for automated deployments.
+*   **12.2 Frontend Deployment:**
+    *   Build and deploy the React Native app to app stores (App Store, Google Play Store) via Expo build services.
+*   **12.3 Monitoring & Logging:**
+    *   Set up logging and monitoring tools (e.g., Sentry, New Relic, CloudWatch) for both backend and frontend to track errors and performance in production.
+*   **12.4 Post-Launch Support & Iteration:**
+    *   Gather user feedback, plan for future features and improvements.
+
+---
+
+### Strategy for Optimal, Reliable, Scalable, and Secure Development
+
+1.  **Test-Driven Development (TDD) / Test-First:**
+    *   **Unit Tests:** For individual functions, components, models, and utilities (e.g., password hashing, validation logic). Use `jest` for both backend and frontend.
+    *   **Integration Tests:** For testing interactions between modules (e.g., API endpoints with database, Redux actions with reducers, component interactions). Use `supertest` for backend API.
+    *   **End-to-End (E2E) Tests:** For simulating real user flows on the frontend.
+    *   **Benefits:** Catches bugs early, ensures correctness, acts as living documentation, facilitates refactoring, improves code quality.
+
+2.  **Modular Architecture:**
+    *   **Backend:** Separate routes, controllers, services, models, and middleware into distinct files/folders.
+    *   **Frontend:** Create reusable components, separate screens, use a clear state management pattern.
+    *   **Benefits:** Easier to understand, maintain, test, and scale individual parts of the application.
+
+3.  **Security Best Practices:**
+    *   **Input Validation:** On both client and server sides to prevent injections and unexpected data. Utilize Yup for schema validation on the backend.
+    *   **Password Hashing:** Always use strong hashing algorithms like `bcrypt`.
+    *   **JWT Security:** Use short-lived access tokens with refresh tokens (if applicable), store tokens securely (HTTP-only cookies for web, `AsyncStorage` for mobile with caution).
+    *   **Data Encryption:** Encrypt sensitive data at rest and in transit (HTTPS).
+    *   **Rate Limiting:** Protect against brute-force attacks on authentication and other critical endpoints.
+    *   **CORS:** Properly configure Cross-Origin Resource Sharing.
+    *   **Environment Variables:** Never hardcode sensitive credentials.
+
+4.  **Version Control (Git):**
+    *   Consistent branching strategy (e.g., GitFlow or GitHub Flow).
+    *   Regular, small commits with clear messages.
+    *   **Benefits:** Collaboration, change tracking, rollback capability.
+
+5.  **Continuous Integration/Continuous Deployment (CI/CD):**
+    *   Automate testing and deployment using tools like GitHub Actions, GitLab CI, Jenkins.
+    *   **Benefits:** Faster feedback, consistent deployments, reduced manual errors.
+
+6.  **Error Handling & Logging:**
+    *   Centralized, robust error handling on both frontend and backend.
+    *   Comprehensive logging to monitor application health and debug issues in production.
+
+7.  **Documentation:**
+    *   Clear READMEs, API documentation (Swagger/OpenAPI), and inline comments where necessary.
+    *   **Benefits:** Helps new developers onboard, makes maintenance easier.
+
+---
+
+This roadmap provides a comprehensive guide. We will tackle each step systematically.
+
+**Before we dive into the next backend steps (defining models and migrations), let's ensure our testing environment is set up.**
+
+**Next Step:** Setting up Jest for unit and integration testing in the backend.
