@@ -17,17 +17,63 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
       }}>
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="card"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Card',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="cardDetail"
+        options={{
+          href: null, // Hide from tab bar
+          headerShown: true, // Show header for this screen
+          title: 'Card Details',
+        }}
+      />
+      <Tabs.Screen
+        name="createCard"
+        options={{
+          href: null, // Hide from tab bar
+          headerShown: true, // Show header for this screen
+          title: 'Create New Card',
+        }}
+      />
+      <Tabs.Screen
+        name="transactionList"
+        options={{
+          href: null, // Hide from tab bar
+          headerShown: true, // Show header for this screen
+          title: 'Transactions',
+        }}
+      />
+      <Tabs.Screen
+        name="payment"
+        options={{
+          href: null, // Hide from tab bar
+          headerShown: true, // Show header for this screen
+          title: 'Make a Payment',
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
         }}
       />
     </Tabs>
