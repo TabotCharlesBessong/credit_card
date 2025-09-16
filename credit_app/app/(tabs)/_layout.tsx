@@ -31,6 +31,38 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="cardDetail"
+        options={{
+          href: null, // Hide from tab bar
+          headerShown: true, // Show header for this screen
+          title: 'Card Details',
+        }}
+      />
+      <Tabs.Screen
+        name="createCard"
+        options={{
+          href: null, // Hide from tab bar
+          headerShown: true, // Show header for this screen
+          title: 'Create New Card',
+        }}
+      />
+      <Tabs.Screen
+        name="transactionList"
+        options={{
+          href: null, // Hide from tab bar
+          headerShown: true, // Show header for this screen
+          title: 'Transactions',
+        }}
+      />
+      <Tabs.Screen
+        name="payment"
+        options={{
+          href: null, // Hide from tab bar
+          headerShown: true, // Show header for this screen
+          title: 'Make a Payment',
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
