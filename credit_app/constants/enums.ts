@@ -10,3 +10,14 @@ export enum CardType {
   AMEX = 'AMEX',
   DISCOVER = 'DISCOVER',
 }
+
+export enum TransactionType {
+  DEBIT = 'DEBIT',
+  CREDIT = 'CREDIT',
+}
+
+export enum TransactionStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
