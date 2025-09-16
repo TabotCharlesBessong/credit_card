@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useField } from 'formik';
-import { Picker as _Picker, PickerProps } from '@react-native-picker/picker';
+import { Picker as OriginalPicker, PickerProps, PickerItemProps } from '@react-native-picker/picker';
 
-const Picker: React.ComponentType<PickerProps<any>> & { Item: React.ComponentType<PickerProps<any>['children']> } = _Picker as any;
+// Explicitly define the type for Picker to include its static 'Item' property
+const Picker: React.FC<PickerProps<any>> & { Item: React.ComponentType<PickerItemProps> } = OriginalPicker as any;
 
 interface SelectOption {
   label: string;
