@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Button } from 'react-native';
+import { View, StyleSheet, ScrollView, Button } from 'react-native';
 import FormikTextInput from '@/components/forms/FormikTextInput';
 import FormikPasswordInput from '@/components/forms/FormikPasswordInput';
 import FormikRadioButton from '@/components/forms/FormikRadioButton';

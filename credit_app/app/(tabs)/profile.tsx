@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Button } from 'react-native';
+import { View, StyleSheet, ScrollView, Button } from 'react-native';
 import Card from '@/components/ui/Card';
 import { ThemedText } from '@/components/themed-text';
 import FormikTextInput from '@/components/forms/FormikTextInput';
