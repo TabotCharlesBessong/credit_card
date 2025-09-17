@@ -38,6 +38,7 @@ const PaymentScreen = ({ navigation }: any) => {
   const [description, setDescription] = useState('');
   const [recipientDetails, setRecipientDetails] = useState(''); // For top-up/send money
   const [merchant, setMerchant] = useState(''); // For card payments
+  const [phoneNumber, setPhoneNumber] = useState(''); // For mobile money payments
   const [paymentType, setPaymentType] = useState('topUpMobile'); // Default payment type
 
   const handlePayment = async () => {
@@ -58,6 +59,12 @@ const PaymentScreen = ({ navigation }: any) => {
       return;
     }
 
+    // Validate phone number if applicable
+    if ((paymentType.includes('Mobile') || paymentType.includes('Orange')) && !phoneNumber) {
+      Alert.alert('Error', 'Phone number is required for mobile money payments.');
+      return;
+    }
+
     const parsedAmount = parseFloat(amount);
 
     let payload: any;
@@ -65,11 +72,11 @@ const PaymentScreen = ({ navigation }: any) => {
     switch (paymentType) {
       case 'topUpMobile':
         if (!recipientDetails) return Alert.alert('Error', 'Recipient details are required.');
-        payload = { cardId: selectedCardId, amount: parsedAmount, description, recipientDetails };
+        payload = { cardId: selectedCardId, amount: parsedAmount, description, recipientDetails, phoneNumber };
         break;
       case 'topUpOrange':
         if (!recipientDetails) return Alert.alert('Error', 'Recipient details are required.');
-        payload = { cardId: selectedCardId, amount: parsedAmount, description, recipientDetails };
+        payload = { cardId: selectedCardId, amount: parsedAmount, description, recipientDetails, phoneNumber };
         break;
       case 'topUpBank':
         if (!recipientDetails) return Alert.alert('Error', 'Recipient details are required.');
@@ -77,11 +84,11 @@ const PaymentScreen = ({ navigation }: any) => {
         break;
       case 'sendMobile':
         if (!recipientDetails) return Alert.alert('Error', 'Recipient details are required.');
-        payload = { cardId: selectedCardId, amount: parsedAmount, description, recipientDetails };
+        payload = { cardId: selectedCardId, amount: parsedAmount, description, recipientDetails, phoneNumber };
         break;
       case 'sendOrange':
         if (!recipientDetails) return Alert.alert('Error', 'Recipient details are required.');
-        payload = { cardId: selectedCardId, amount: parsedAmount, description, recipientDetails };
+        payload = { cardId: selectedCardId, amount: parsedAmount, description, recipientDetails, phoneNumber };
         break;
       case 'sendBank':
         if (!recipientDetails) return Alert.alert('Error', 'Recipient details are required.');
@@ -97,33 +104,40 @@ const PaymentScreen = ({ navigation }: any) => {
     }
 
     try {
+      let result: any;
       switch (paymentType) {
         case 'topUpMobile':
-          await dispatch(topUpMobileMoney({ topUpData: payload as TopUpData, token: userToken })).unwrap();
+          result = await dispatch(topUpMobileMoney({ topUpData: payload as TopUpData, token: userToken })).unwrap();
           break;
         case 'topUpOrange':
-          await dispatch(topUpOrangeMoney({ topUpData: payload as TopUpData, token: userToken })).unwrap();
+          result = await dispatch(topUpOrangeMoney({ topUpData: payload as TopUpData, token: userToken })).unwrap();
           break;
         case 'topUpBank':
-          await dispatch(topUpBankAccount({ topUpData: payload as TopUpData, token: userToken })).unwrap();
+          result = await dispatch(topUpBankAccount({ topUpData: payload as TopUpData, token: userToken })).unwrap();
           break;
         case 'sendMobile':
-          await dispatch(sendToMobileMoney({ sendMoneyData: payload as SendMoneyData, token: userToken })).unwrap();
+          result = await dispatch(sendToMobileMoney({ sendMoneyData: payload as SendMoneyData, token: userToken })).unwrap();
           break;
         case 'sendOrange':
-          await dispatch(sendToOrangeMoney({ sendMoneyData: payload as SendMoneyData, token: userToken })).unwrap();
+          result = await dispatch(sendToOrangeMoney({ sendMoneyData: payload as SendMoneyData, token: userToken })).unwrap();
           break;
         case 'sendBank':
-          await dispatch(sendToBankAccount({ sendMoneyData: payload as SendMoneyData, token: userToken })).unwrap();
+          result = await dispatch(sendToBankAccount({ sendMoneyData: payload as SendMoneyData, token: userToken })).unwrap();
           break;
         case 'cardPayment':
-          await dispatch(processCardPayment({ cardPaymentData: payload as CardPaymentData, token: userToken })).unwrap();
+          result = await dispatch(processCardPayment({ cardPaymentData: payload as CardPaymentData, token: userToken })).unwrap();
           break;
         default:
           break;
       }
-      Alert.alert('Success', 'Payment processed successfully!');
-      navigation.goBack();
+      
+      if (result && result.redirectUrl) {
+        // Handle redirect to Fapshi
+        navigation.navigate('PaymentStatus', { redirectUrl: result.redirectUrl }); // Navigate to a new screen to handle the redirect
+      } else {
+        Alert.alert('Success', 'Payment processed successfully!');
+        navigation.goBack();
+      }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to process payment.');
     }
@@ -191,14 +205,28 @@ const PaymentScreen = ({ navigation }: any) => {
           />
         </View>
 
-        {(paymentType.includes('topUp') || paymentType.includes('send')) && (
+        {(paymentType.includes('Mobile') || paymentType.includes('Orange')) && (
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Phone Number</ThemedText>
+            <TextInput
+              style={styles.input}
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
+              placeholder="e.g., 237XXXXXXXXX"
+            />
+          </View>
+        )}
+
+        {(paymentType.includes('topUp') || paymentType.includes('send')) &&
+         !(paymentType.includes('Mobile') || paymentType.includes('Orange')) && (
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Recipient Details</ThemedText>
             <TextInput
               style={styles.input}
               value={recipientDetails}
               onChangeText={setRecipientDetails}
-              placeholder="e.g., Mobile number, Bank account number"
+              placeholder="e.g., Bank account number"
             />
           </View>
         )}
