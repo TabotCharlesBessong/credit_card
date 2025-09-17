@@ -4,20 +4,29 @@
     "password": "your_password",
     "database": "credit_card_app",
     "host": "127.0.0.1",
-    "dialect": "postgres"
+    "dialect": "postgres",
+    "fapshi_public_key": "pk_test_YOUR_FAPSHI_PUBLIC_KEY",
+    "fapshi_secret_key": "sk_test_YOUR_FAPSHI_SECRET_KEY",
+    "fapshi_base_url": "https://api.fapshi.com/v1"
   },
   "test": {
     "username": "your_username",
     "password": "your_password",
     "database": "credit_card_app_test",
     "host": "127.0.0.1",
-    "dialect": "postgres"
+    "dialect": "postgres",
+    "fapshi_public_key": "pk_test_YOUR_FAPSHI_PUBLIC_KEY",
+    "fapshi_secret_key": "sk_test_YOUR_FAPSHI_SECRET_KEY",
+    "fapshi_base_url": "https://api.fapshi.com/v1"
   },
   "production": {
     "username": "your_username",
     "password": "your_password",
     "database": "credit_card_app_production",
     "host": "127.0.0.1",
-    "dialect": "postgres"
+    "dialect": "postgres",
+    "fapshi_public_key": "pk_live_YOUR_FAPSHI_PUBLIC_KEY",
+    "fapshi_secret_key": "sk_live_YOUR_FAPSHI_SECRET_KEY",
+    "fapshi_base_url": "https://api.fapshi.com/v1"
   }
 }
