@@ -18,6 +18,7 @@ export interface TopUpData {
   amount: number;
   description: string;
   recipientDetails: string;
+  phoneNumber?: string; // Optional for mobile money top-ups
 }
 
 export interface SendMoneyData {
@@ -25,6 +26,7 @@ export interface SendMoneyData {
   amount: number;
   description: string;
   recipientDetails: string;
+  phoneNumber?: string; // Optional for mobile money transfers
 }
 
 export interface CardPaymentData {
@@ -36,5 +38,6 @@ export interface CardPaymentData {
 
 export interface TransactionResult {
   message: string;
-  transaction: Transaction;
+  transaction?: Transaction; // Transaction is optional as it might be pending initiation
+  redirectUrl?: string; // Added for Fapshi integration
 }

@@ -25,3 +25,15 @@ export enum TransactionStatus {
   FAILED = 'failed',
   REFUNDED = 'refunded',
 }
+
+export enum FapshiPaymentMethod {
+  MTN_MOMO = 'MTN_MOMO',
+  ORANGE_MONEY = 'ORANGE_MONEY',
+  BANK_TRANSFER = 'BANK_TRANSFER',
+  CREDIT_CARD = 'CARD',
+}
+
+export enum PaymentGateway {
+  FAPSHI = 'FAPSHI',
+  // Add other gateways here if needed
+}
