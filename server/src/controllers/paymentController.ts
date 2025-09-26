@@ -23,6 +23,11 @@ const topUpSchema = yup.object().shape({
   amount: yup.number().min(0.01, 'Amount must be positive').required('Amount is required'),
   description: yup.string().required('Description is required'),
   recipientDetails: yup.string().required('Recipient details are required'),
+  phoneNumber: yup.string().when(['recipientDetails'], {
+    is: (recipientDetails: string) => recipientDetails.length > 0 && (recipientDetails.startsWith('MTN') || recipientDetails.startsWith('Orange')),
+    then: (schema) => schema.required('Phone number is required for mobile money top-ups.'),
+    otherwise: (schema) => schema.optional(),
+  }),
 });
 
 const sendMoneySchema = yup.object().shape({
@@ -30,6 +35,11 @@ const sendMoneySchema = yup.object().shape({
   amount: yup.number().min(0.01, 'Amount must be positive').required('Amount is required'),
   description: yup.string().required('Description is required'),
   recipientDetails: yup.string().required('Recipient details are required'), // e.g., mobile number, bank account number
+  phoneNumber: yup.string().when(['recipientDetails'], {
+    is: (recipientDetails: string) => recipientDetails.length > 0 && (recipientDetails.startsWith('MTN') || recipientDetails.startsWith('Orange')),
+    then: (schema) => schema.required('Phone number is required for mobile money transfers.'),
+    otherwise: (schema) => schema.optional(),
+  }),
 });
 
 const cardPaymentSchema = yup.object().shape({
@@ -75,14 +85,14 @@ export const topUpMobileMoney = async (req: AuthenticatedRequest, res: Response)
       return res.status(401).json({ message: 'User not authenticated.' });
     }
     await topUpSchema.validate(req.body, { abortEarly: false });
-    const { cardId, amount, description, recipientDetails } = req.body;
+    const { cardId, amount, description, recipientDetails, phoneNumber } = req.body;
 
-    const result = await paymentService.topUpMobileMoney(amount, cardId, description, recipientDetails);
+    const result = await paymentService.topUpMobileMoney(amount, cardId, description, recipientDetails, phoneNumber);
 
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
     if (result.success) {
-      return res.status(200).json({ message: result.message, transaction: result.transaction });
+      return res.status(200).json({ message: result.message, transaction: result.transaction, redirectUrl: result.redirectUrl });
     } else {
       return res.status(400).json({ message: result.message, transaction: result.transaction });
     }
@@ -101,14 +111,14 @@ export const topUpOrangeMoney = async (req: AuthenticatedRequest, res: Response)
       return res.status(401).json({ message: 'User not authenticated.' });
     }
     await topUpSchema.validate(req.body, { abortEarly: false });
-    const { cardId, amount, description, recipientDetails } = req.body;
+    const { cardId, amount, description, recipientDetails, phoneNumber } = req.body;
 
-    const result = await paymentService.topUpOrangeMoney(amount, cardId, description, recipientDetails);
+    const result = await paymentService.topUpOrangeMoney(amount, cardId, description, recipientDetails, phoneNumber);
 
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
     if (result.success) {
-      return res.status(200).json({ message: result.message, transaction: result.transaction });
+      return res.status(200).json({ message: result.message, transaction: result.transaction, redirectUrl: result.redirectUrl });
     } else {
       return res.status(400).json({ message: result.message, transaction: result.transaction });
     }
@@ -134,7 +144,7 @@ export const topUpBankAccount = async (req: AuthenticatedRequest, res: Response)
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
     if (result.success) {
-      return res.status(200).json({ message: result.message, transaction: result.transaction });
+      return res.status(200).json({ message: result.message, transaction: result.transaction, redirectUrl: result.redirectUrl });
     } else {
       return res.status(400).json({ message: result.message, transaction: result.transaction });
     }
@@ -153,14 +163,14 @@ export const sendToMobileMoney = async (req: AuthenticatedRequest, res: Response
       return res.status(401).json({ message: 'User not authenticated.' });
     }
     await sendMoneySchema.validate(req.body, { abortEarly: false });
-    const { cardId, amount, description, recipientDetails } = req.body;
+    const { cardId, amount, description, recipientDetails, phoneNumber } = req.body;
 
-    const result = await paymentService.sendToMobileMoney(amount, cardId, description,recipientDetails);
+    const result = await paymentService.sendToMobileMoney(amount, cardId, description, recipientDetails, phoneNumber);
 
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
     if (result.success) {
-      return res.status(200).json({ message: result.message, transaction: result.transaction });
+      return res.status(200).json({ message: result.message, transaction: result.transaction, redirectUrl: result.redirectUrl });
     } else {
       return res.status(400).json({ message: result.message, transaction: result.transaction });
     }
@@ -179,14 +189,14 @@ export const sendToOrangeMoney = async (req: AuthenticatedRequest, res: Response
       return res.status(401).json({ message: 'User not authenticated.' });
     }
     await sendMoneySchema.validate(req.body, { abortEarly: false });
-    const { cardId, amount, description, recipientDetails } = req.body;
+    const { cardId, amount, description, recipientDetails, phoneNumber } = req.body;
 
-    const result = await paymentService.sendToOrangeMoney(amount, cardId, description, recipientDetails);
+    const result = await paymentService.sendToOrangeMoney(amount, cardId, description, recipientDetails, phoneNumber);
 
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
     if (result.success) {
-      return res.status(200).json({ message: result.message, transaction: result.transaction });
+      return res.status(200).json({ message: result.message, transaction: result.transaction, redirectUrl: result.redirectUrl });
     } else {
       return res.status(400).json({ message: result.message, transaction: result.transaction });
     }
@@ -212,7 +222,7 @@ export const sendToBankAccount = async (req: AuthenticatedRequest, res: Response
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
     if (result.success) {
-      return res.status(200).json({ message: result.message, transaction: result.transaction });
+      return res.status(200).json({ message: result.message, transaction: result.transaction, redirectUrl: result.redirectUrl });
     } else {
       return res.status(400).json({ message: result.message, transaction: result.transaction });
     }
@@ -238,7 +248,7 @@ export const processCardPayment = async (req: AuthenticatedRequest, res: Respons
     await sendTransactionEmail(req.user.id, cardId, result.transaction, result.success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED, result.message);
 
     if (result.success) {
-      return res.status(200).json({ message: result.message, transaction: result.transaction });
+      return res.status(200).json({ message: result.message, transaction: result.transaction, redirectUrl: result.redirectUrl });
     } else {
       return res.status(400).json({ message: result.message, transaction: result.transaction });
     }
