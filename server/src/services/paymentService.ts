@@ -25,7 +25,9 @@ const fapshiConfig = {
 
 const makeFapshiRequest = async (endpoint: string, data: any): Promise<FapshiTransactionResponse> => {
   try {
-    const response = await axios.post(`${fapshiConfig.fapshi_base_url}${endpoint}`,
+    const fullUrl = `${fapshiConfig.fapshi_base_url}${endpoint}`;
+    logger.info(`Making Fapshi POST request to: ${fullUrl}`);
+    const response = await axios.post(fullUrl,
       data,
       {
         headers: {
@@ -53,7 +55,7 @@ export const createFapshiTransaction = async (
   phoneNumber?: string // For mobile money
 ): Promise<{ success: boolean; message: string; redirectUrl?: string; transactionId?: string }> => {
   try {
-    const fapshiResponse = await makeFapshiRequest('/transactions', {
+    const fapshiResponse = await makeFapshiRequest('/transaction', {
       amount,
       currency,
       description,
@@ -87,13 +89,14 @@ export const topUpMobileMoney = async (
 ): Promise<{ success: boolean; message: string; redirectUrl?: string; transaction?: Transaction }> => {
   logger.info(`Attempting Mobile Money top-up via Fapshi for card ${cardId}, amount: ${amount}`);
   try {
-    // Assume XAF currency for Fapshi
+    const creditCard = await CreditCard.findByPk(cardId);
+    if (!creditCard) {
+      return { success: false, message: 'Credit card not found.' };
+    }
     const currency = 'XAF'; 
-    // For a real application, cardId and other details would be stored and retrieved
-    // Here we're directly initiating a Fapshi transaction.
     const clientRef = `topup_momo_${cardId}_${Date.now()}`;
     const redirectUrl = `http://localhost:3000/payment-status?cardId=${cardId}`;
-    const webhookUrl = 'http://your-server.com/fapshi-webhook'; // Replace with actual webhook
+    const webhookUrl = 'http://your-server.com/fapshi-webhook';
 
     const fapshiResult = await createFapshiTransaction(
       amount,
@@ -107,7 +110,6 @@ export const topUpMobileMoney = async (
     );
 
     if (fapshiResult.success && fapshiResult.redirectUrl) {
-      // Create a pending transaction in your DB. This will be updated by webhook.
       const transaction = await Transaction.create({
         cardId,
         amount,
@@ -116,12 +118,11 @@ export const topUpMobileMoney = async (
         description: `Fapshi Mobile Money Top-up: ${description}`,
         merchant: 'MTN Mobile Money',
         recipientDetails,
-        paymentGateway: PaymentGateway.FAPSHI, // Store which gateway was used
-        gatewayTransactionId: fapshiResult.transactionId, // Store Fapshi's transaction ID
+        paymentGateway: PaymentGateway.FAPSHI,
+        gatewayTransactionId: fapshiResult.transactionId,
       });
       return { ...fapshiResult, transaction };
     } else {
-      // Record failed transaction if Fapshi initiation fails
       await Transaction.create({
         cardId,
         amount,
@@ -135,7 +136,7 @@ export const topUpMobileMoney = async (
       return { success: false, message: fapshiResult.message };
     }
   } catch (error: any) {
-    logger.error(`Error in topUpMobileMoney (Fapshi):`, error.message);
+    logger.error("Error in topUpMobileMoney:", error.message);
     return { success: false, message: error.message };
   }
 };
@@ -149,6 +150,10 @@ export const topUpOrangeMoney = async (
 ): Promise<{ success: boolean; message: string; redirectUrl?: string; transaction?: Transaction }> => {
   logger.info(`Attempting Orange Money top-up via Fapshi for card ${cardId}, amount: ${amount}`);
   try {
+    const creditCard = await CreditCard.findByPk(cardId);
+    if (!creditCard) {
+      return { success: false, message: 'Credit card not found.' };
+    }
     const currency = 'XAF';
     const clientRef = `topup_orange_${cardId}_${Date.now()}`;
     const redirectUrl = `http://localhost:3000/payment-status?cardId=${cardId}`;
@@ -205,6 +210,10 @@ export const topUpBankAccount = async (
 ): Promise<{ success: boolean; message: string; redirectUrl?: string; transaction?: Transaction }> => {
   logger.info(`Attempting Bank Account top-up via Fapshi for card ${cardId}, amount: ${amount}`);
   try {
+    const creditCard = await CreditCard.findByPk(cardId);
+    if (!creditCard) {
+      return { success: false, message: 'Credit card not found.' };
+    }
     const currency = 'XAF';
     const clientRef = `topup_bank_${cardId}_${Date.now()}`;
     const redirectUrl = `http://localhost:3000/payment-status?cardId=${cardId}`;
@@ -261,7 +270,6 @@ export const sendToMobileMoney = async (
 ): Promise<{ success: boolean; message: string; redirectUrl?: string; transaction?: Transaction }> => {
   logger.info(`Attempting to send money to Mobile Money via Fapshi from card ${cardId}, amount: ${amount}`);
   try {
-    // Before initiating Fapshi transaction, check if card has sufficient funds
     const creditCard = await CreditCard.findByPk(cardId);
     if (!creditCard) {
       return { success: false, message: 'Credit card not found.' };
@@ -269,7 +277,6 @@ export const sendToMobileMoney = async (
     if (new Decimal(creditCard.currentBalance).lessThan(amount)) {
       return { success: false, message: 'Insufficient funds on card.' };
     }
-
     const currency = 'XAF';
     const clientRef = `send_momo_${cardId}_${Date.now()}`;
     const redirectUrl = `http://localhost:3000/payment-status?cardId=${cardId}`;
@@ -287,7 +294,6 @@ export const sendToMobileMoney = async (
     );
 
     if (fapshiResult.success && fapshiResult.redirectUrl) {
-      // Temporarily deduct from balance. Final update will be via webhook.
       await creditCard.update({ currentBalance: new Decimal(creditCard.currentBalance).minus(amount).toFixed(2) });
 
       const transaction = await Transaction.create({
