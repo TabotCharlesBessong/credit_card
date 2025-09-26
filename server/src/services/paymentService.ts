@@ -1,104 +1,144 @@
 import logger from '../config/logger';
-import { TransactionType, TransactionStatus } from '../constants/enums';
+import { TransactionType, TransactionStatus, FapshiPaymentMethod, PaymentGateway } from '../constants/enums';
 import CreditCard from '../models/CreditCard';
 import Transaction from '../models/Transaction';
-import { Decimal } from 'decimal.js'; // Import Decimal
+import { Decimal } from 'decimal.js';
+import axios from 'axios';
+// import config from '../config/config.json';
+import dotenv from 'dotenv';
+dotenv.config();
 
-// This service will simulate interactions with external payment gateways.
-// In a real application, these would involve actual API calls to providers like Stripe, Mobile Money APIs, etc.
+const currentEnv = process.env.NODE_ENV || 'development';
+// const fapshiConfig = (config as any)[currentEnv];
 
-export const simulatePaymentGateway = async (
-  type: TransactionType,
-  amount: number,
-  cardId: number,
-  description: string,
-  merchant?: string,
-  recipientDetails?: string,
-): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
-  logger.info(`Simulating ${type} transaction for card ${cardId} with amount ${amount}.`);
+interface FapshiTransactionResponse {
+  redirect_url: string;
+  transaction_id: string;
+  status: string;
+}
 
-  const creditCard = await CreditCard.findByPk(cardId);
-  if (!creditCard) {
-    return { success: false, message: 'Credit card not found.' };
-  }
+const fapshiConfig = {
+  fapshi_base_url: process.env.FAPSHI_BASE_URL,
+  fapshi_secret_key: process.env.FAPSHI_SECRET_KEY,
+  fapshi_public_key: process.env.FAPSHI_PUBLIC_KEY,
+};
 
-  let newBalance = new Decimal(creditCard.currentBalance); // Initialize as Decimal
-  let transactionAmount = new Decimal(amount); // Convert amount to Decimal
-  let transactionStatus = TransactionStatus.PENDING;
-  let chargeAmount = new Decimal(0);
-
-  // Apply transaction charges (2-5%) for non-top-up transactions
-  if (type !== TransactionType.TOP_UP) {
-    const chargeRate = new Decimal(Math.random() * (0.05 - 0.02) + 0.02); // Random rate between 2% and 5%
-    chargeAmount = transactionAmount.times(chargeRate);
-    transactionAmount = transactionAmount.plus(chargeAmount); // Add charge to the transaction amount
-    logger.info(`Applied charge of ${chargeAmount.toFixed(2)} for ${type} transaction. New total amount: ${transactionAmount.toFixed(2)}`);
-  }
-
+const makeFapshiRequest = async (endpoint: string, data: any): Promise<FapshiTransactionResponse> => {
   try {
-    // Simulate delay and potential failure
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network latency
-    const isSuccess = Math.random() > 0.1; // 90% success rate
-
-    if (!isSuccess) {
-      transactionStatus = TransactionStatus.FAILED;
-      throw new Error('Simulated payment failed.');
-    }
-
-    if (type === TransactionType.DEBIT || type === TransactionType.TRANSFER) {
-      if (newBalance.minus(transactionAmount).lessThan(0)) {
-        transactionStatus = TransactionStatus.FAILED;
-        throw new Error('Insufficient funds or exceeding credit limit.');
+    const fullUrl = `${fapshiConfig.fapshi_base_url}${endpoint}`;
+    logger.info(`Making Fapshi POST request to: ${fullUrl}`);
+    const response = await axios.post(fullUrl,
+      data,
+      {
+        headers: {
+          'Authorization': `Bearer ${fapshiConfig.fapshi_secret_key}`,
+          'Content-Type': 'application/json',
+        },
       }
-      newBalance = newBalance.minus(transactionAmount);
-    } else if (type === TransactionType.CREDIT || type === TransactionType.TOP_UP) {
-      newBalance = newBalance.plus(transactionAmount.minus(chargeAmount)); // Top-ups don't have charges subtracted from the actual amount received
-    }
-
-    transactionStatus = TransactionStatus.COMPLETED;
-
-    await creditCard.update({ currentBalance: newBalance.toFixed(2) }); // Convert back to number or string for DB
-
-    const transaction = await Transaction.create({
-      cardId,
-      amount: amount, // Store original amount, charges are implied
-      type,
-      status: transactionStatus,
-      description: description + (chargeAmount.greaterThan(0) ? ` (includes charge of ${chargeAmount.toFixed(2)})` : ''),
-      merchant: merchant || (type === TransactionType.DEBIT ? 'Simulated Merchant' : null),
-      recipientDetails: recipientDetails || null,
-    });
-
-    logger.info(`Simulated ${type} transaction completed successfully for card ${cardId}. New balance: ${newBalance.toFixed(2)}`);
-    return { success: true, message: 'Payment processed successfully.', transaction };
+    );
+    return response.data;
   } catch (error: any) {
-    logger.error(`Simulated ${type} transaction failed for card ${cardId}: ${error.message}`);
-
-    // Record failed transaction
-    const transaction = await Transaction.create({
-      cardId,
-      amount: amount, // Store original amount, charges are implied
-      type,
-      status: TransactionStatus.FAILED,
-      description: description + (chargeAmount.greaterThan(0) ? ` (includes charge of ${chargeAmount.toFixed(2)})` : ''),
-      merchant: merchant || (type === TransactionType.DEBIT ? 'Simulated Merchant' : null),
-      recipientDetails: recipientDetails || null,
-    });
-
-    return { success: false, message: error.message, transaction };
+    logger.error("Fapshi API request failed:", error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || 'Fapshi API request failed');
   }
 };
 
-// Specific functions for different payment types
+// Placeholder for Fapshi-specific transaction creation
+export const createFapshiTransaction = async (
+  amount: number,
+  currency: string,
+  description: string,
+  clientRef: string,
+  redirectUrl: string,
+  webhookUrl: string,
+  paymentMethod: FapshiPaymentMethod,
+  phoneNumber?: string // For mobile money
+): Promise<{ success: boolean; message: string; redirectUrl?: string; transactionId?: string }> => {
+  try {
+    const fapshiResponse = await makeFapshiRequest('/transaction', {
+      amount,
+      currency,
+      description,
+      client_ref: clientRef,
+      redirect_url: redirectUrl,
+      webhook_url: webhookUrl,
+      payment_method: paymentMethod,
+      // Include phone number if required and provided for mobile money methods
+      ...(phoneNumber && (paymentMethod === FapshiPaymentMethod.MTN_MOMO || paymentMethod === FapshiPaymentMethod.ORANGE_MONEY) && { phone_number: phoneNumber }),
+    });
+
+    if (fapshiResponse.redirect_url) {
+      return { success: true, message: 'Fapshi transaction initiated.', redirectUrl: fapshiResponse.redirect_url, transactionId: fapshiResponse.transaction_id };
+    } else {
+      logger.error("Fapshi transaction initiation failed:", fapshiResponse);
+      return { success: false, message: 'Failed to initiate Fapshi transaction.' };
+    }
+  } catch (error: any) {
+    logger.error("Error in createFapshiTransaction:", error.message);
+    return { success: false, message: error.message };
+  }
+};
+
+// Refactor existing payment functions to use Fapshi
 export const topUpMobileMoney = async (
   amount: number,
   cardId: number,
   description: string,
   recipientDetails: string,
-): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
-  logger.info(`Attempting Mobile Money top-up for card ${cardId}, amount: ${amount}`);
-  const result = await simulatePaymentGateway(TransactionType.TOP_UP, amount, cardId, description, 'Mobile Money', recipientDetails);
-  return { ...result, message: result.success ? 'Mobile money top-up successful.' : result.message };
+  phoneNumber: string, // Fapshi requires phone number for mobile money
+): Promise<{ success: boolean; message: string; redirectUrl?: string; transaction?: Transaction }> => {
+  logger.info(`Attempting Mobile Money top-up via Fapshi for card ${cardId}, amount: ${amount}`);
+  try {
+    const creditCard = await CreditCard.findByPk(cardId);
+    if (!creditCard) {
+      return { success: false, message: 'Credit card not found.' };
+    }
+    const currency = 'XAF'; 
+    const clientRef = `topup_momo_${cardId}_${Date.now()}`;
+    const redirectUrl = `http://localhost:3000/payment-status?cardId=${cardId}`;
+    const webhookUrl = 'http://your-server.com/fapshi-webhook';
+
+    const fapshiResult = await createFapshiTransaction(
+      amount,
+      currency,
+      description,
+      clientRef,
+      redirectUrl,
+      webhookUrl,
+      FapshiPaymentMethod.MTN_MOMO,
+      phoneNumber
+    );
+
+    if (fapshiResult.success && fapshiResult.redirectUrl) {
+      const transaction = await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TOP_UP,
+        status: TransactionStatus.PENDING,
+        description: `Fapshi Mobile Money Top-up: ${description}`,
+        merchant: 'MTN Mobile Money',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+        gatewayTransactionId: fapshiResult.transactionId,
+      });
+      return { ...fapshiResult, transaction };
+    } else {
+      await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TOP_UP,
+        status: TransactionStatus.FAILED,
+        description: `Fapshi Mobile Money Top-up failed: ${description}`,
+        merchant: 'MTN Mobile Money',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+      });
+      return { success: false, message: fapshiResult.message };
+    }
+  } catch (error: any) {
+    logger.error("Error in topUpMobileMoney:", error.message);
+    return { success: false, message: error.message };
+  }
 };
 
 export const topUpOrangeMoney = async (
@@ -106,10 +146,60 @@ export const topUpOrangeMoney = async (
   cardId: number,
   description: string,
   recipientDetails: string,
-): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
-  logger.info(`Attempting Orange Money top-up for card ${cardId}, amount: ${amount}`);
-  const result = await simulatePaymentGateway(TransactionType.TOP_UP, amount, cardId, description, 'Orange Money', recipientDetails);
-  return { ...result, message: result.success ? 'Orange money top-up successful.' : result.message };
+  phoneNumber: string, // Fapshi requires phone number for mobile money
+): Promise<{ success: boolean; message: string; redirectUrl?: string; transaction?: Transaction }> => {
+  logger.info(`Attempting Orange Money top-up via Fapshi for card ${cardId}, amount: ${amount}`);
+  try {
+    const creditCard = await CreditCard.findByPk(cardId);
+    if (!creditCard) {
+      return { success: false, message: 'Credit card not found.' };
+    }
+    const currency = 'XAF';
+    const clientRef = `topup_orange_${cardId}_${Date.now()}`;
+    const redirectUrl = `http://localhost:3000/payment-status?cardId=${cardId}`;
+    const webhookUrl = 'http://your-server.com/fapshi-webhook';
+
+    const fapshiResult = await createFapshiTransaction(
+      amount,
+      currency,
+      description,
+      clientRef,
+      redirectUrl,
+      webhookUrl,
+      FapshiPaymentMethod.ORANGE_MONEY,
+      phoneNumber
+    );
+
+    if (fapshiResult.success && fapshiResult.redirectUrl) {
+      const transaction = await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TOP_UP,
+        status: TransactionStatus.PENDING,
+        description: `Fapshi Orange Money Top-up: ${description}`,
+        merchant: 'Orange Money',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+        gatewayTransactionId: fapshiResult.transactionId,
+      });
+      return { ...fapshiResult, transaction };
+    } else {
+      await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TOP_UP,
+        status: TransactionStatus.FAILED,
+        description: `Fapshi Orange Money Top-up failed: ${description}`,
+        merchant: 'Orange Money',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+      });
+      return { success: false, message: fapshiResult.message };
+    }
+  } catch (error: any) {
+    logger.error(`Error in topUpOrangeMoney (Fapshi):`, error.message);
+    return { success: false, message: error.message };
+  }
 };
 
 export const topUpBankAccount = async (
@@ -117,10 +207,58 @@ export const topUpBankAccount = async (
   cardId: number,
   description: string,
   recipientDetails: string,
-): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
-  logger.info(`Attempting Bank Account top-up for card ${cardId}, amount: ${amount}`);
-  const result = await simulatePaymentGateway(TransactionType.TOP_UP, amount, cardId, description, 'Bank Account', recipientDetails);
-  return { ...result, message: result.success ? 'Bank account top-up successful.' : result.message };
+): Promise<{ success: boolean; message: string; redirectUrl?: string; transaction?: Transaction }> => {
+  logger.info(`Attempting Bank Account top-up via Fapshi for card ${cardId}, amount: ${amount}`);
+  try {
+    const creditCard = await CreditCard.findByPk(cardId);
+    if (!creditCard) {
+      return { success: false, message: 'Credit card not found.' };
+    }
+    const currency = 'XAF';
+    const clientRef = `topup_bank_${cardId}_${Date.now()}`;
+    const redirectUrl = `http://localhost:3000/payment-status?cardId=${cardId}`;
+    const webhookUrl = 'http://your-server.com/fapshi-webhook';
+
+    const fapshiResult = await createFapshiTransaction(
+      amount,
+      currency,
+      description,
+      clientRef,
+      redirectUrl,
+      webhookUrl,
+      FapshiPaymentMethod.BANK_TRANSFER
+    );
+
+    if (fapshiResult.success && fapshiResult.redirectUrl) {
+      const transaction = await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TOP_UP,
+        status: TransactionStatus.PENDING,
+        description: `Fapshi Bank Account Top-up: ${description}`,
+        merchant: 'Bank Transfer',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+        gatewayTransactionId: fapshiResult.transactionId,
+      });
+      return { ...fapshiResult, transaction };
+    } else {
+      await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TOP_UP,
+        status: TransactionStatus.FAILED,
+        description: `Fapshi Bank Account Top-up failed: ${description}`,
+        merchant: 'Bank Transfer',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+      });
+      return { success: false, message: fapshiResult.message };
+    }
+  } catch (error: any) {
+    logger.error(`Error in topUpBankAccount (Fapshi):`, error.message);
+    return { success: false, message: error.message };
+  }
 };
 
 export const sendToMobileMoney = async (
@@ -128,10 +266,65 @@ export const sendToMobileMoney = async (
   cardId: number,
   description: string,
   recipientDetails: string,
-): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
-  logger.info(`Attempting to send money to Mobile Money from card ${cardId}, amount: ${amount}`);
-  const result = await simulatePaymentGateway(TransactionType.TRANSFER, amount, cardId, description, 'Mobile Money Transfer', recipientDetails);
-  return { ...result, message: result.success ? 'Money sent to Mobile Money successfully.' : result.message };
+  phoneNumber: string,
+): Promise<{ success: boolean; message: string; redirectUrl?: string; transaction?: Transaction }> => {
+  logger.info(`Attempting to send money to Mobile Money via Fapshi from card ${cardId}, amount: ${amount}`);
+  try {
+    const creditCard = await CreditCard.findByPk(cardId);
+    if (!creditCard) {
+      return { success: false, message: 'Credit card not found.' };
+    }
+    if (new Decimal(creditCard.currentBalance).lessThan(amount)) {
+      return { success: false, message: 'Insufficient funds on card.' };
+    }
+    const currency = 'XAF';
+    const clientRef = `send_momo_${cardId}_${Date.now()}`;
+    const redirectUrl = `http://localhost:3000/payment-status?cardId=${cardId}`;
+    const webhookUrl = 'http://your-server.com/fapshi-webhook';
+
+    const fapshiResult = await createFapshiTransaction(
+      amount,
+      currency,
+      description,
+      clientRef,
+      redirectUrl,
+      webhookUrl,
+      FapshiPaymentMethod.MTN_MOMO,
+      phoneNumber
+    );
+
+    if (fapshiResult.success && fapshiResult.redirectUrl) {
+      await creditCard.update({ currentBalance: new Decimal(creditCard.currentBalance).minus(amount).toFixed(2) });
+
+      const transaction = await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TRANSFER,
+        status: TransactionStatus.PENDING,
+        description: `Fapshi Mobile Money Send: ${description}`,
+        merchant: 'MTN Mobile Money',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+        gatewayTransactionId: fapshiResult.transactionId,
+      });
+      return { ...fapshiResult, transaction };
+    } else {
+      await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TRANSFER,
+        status: TransactionStatus.FAILED,
+        description: `Fapshi Mobile Money Send failed: ${description}`,
+        merchant: 'MTN Mobile Money',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+      });
+      return { success: false, message: fapshiResult.message };
+    }
+  } catch (error: any) {
+    logger.error(`Error in sendToMobileMoney (Fapshi):`, error.message);
+    return { success: false, message: error.message };
+  }
 };
 
 export const sendToOrangeMoney = async (
@@ -139,10 +332,66 @@ export const sendToOrangeMoney = async (
   cardId: number,
   description: string,
   recipientDetails: string,
-): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
-  logger.info(`Attempting to send money to Orange Money from card ${cardId}, amount: ${amount}`);
-  const result = await simulatePaymentGateway(TransactionType.TRANSFER, amount, cardId, description, 'Orange Money Transfer', recipientDetails);
-  return { ...result, message: result.success ? 'Money sent to Orange Money successfully.' : result.message };
+  phoneNumber: string,
+): Promise<{ success: boolean; message: string; redirectUrl?: string; transaction?: Transaction }> => {
+  logger.info(`Attempting to send money to Orange Money via Fapshi from card ${cardId}, amount: ${amount}`);
+  try {
+    const creditCard = await CreditCard.findByPk(cardId);
+    if (!creditCard) {
+      return { success: false, message: 'Credit card not found.' };
+    }
+    if (new Decimal(creditCard.currentBalance).lessThan(amount)) {
+      return { success: false, message: 'Insufficient funds on card.' };
+    }
+
+    const currency = 'XAF';
+    const clientRef = `send_orange_${cardId}_${Date.now()}`;
+    const redirectUrl = `http://localhost:3000/payment-status?cardId=${cardId}`;
+    const webhookUrl = 'http://your-server.com/fapshi-webhook';
+
+    const fapshiResult = await createFapshiTransaction(
+      amount,
+      currency,
+      description,
+      clientRef,
+      redirectUrl,
+      webhookUrl,
+      FapshiPaymentMethod.ORANGE_MONEY,
+      phoneNumber
+    );
+
+    if (fapshiResult.success && fapshiResult.redirectUrl) {
+      await creditCard.update({ currentBalance: new Decimal(creditCard.currentBalance).minus(amount).toFixed(2) });
+
+      const transaction = await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TRANSFER,
+        status: TransactionStatus.PENDING,
+        description: `Fapshi Orange Money Send: ${description}`,
+        merchant: 'Orange Money',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+        gatewayTransactionId: fapshiResult.transactionId,
+      });
+      return { ...fapshiResult, transaction };
+    } else {
+      await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TRANSFER,
+        status: TransactionStatus.FAILED,
+        description: `Fapshi Orange Money Send failed: ${description}`,
+        merchant: 'Orange Money',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+      });
+      return { success: false, message: fapshiResult.message };
+    }
+  } catch (error: any) {
+    logger.error(`Error in sendToOrangeMoney (Fapshi):`, error.message);
+    return { success: false, message: error.message };
+  }
 };
 
 export const sendToBankAccount = async (
@@ -150,10 +399,64 @@ export const sendToBankAccount = async (
   cardId: number,
   description: string,
   recipientDetails: string,
-): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
-  logger.info(`Attempting to send money to Bank Account from card ${cardId}, amount: ${amount}`);
-  const result = await simulatePaymentGateway(TransactionType.TRANSFER, amount, cardId, description, 'Bank Account Transfer', recipientDetails);
-  return { ...result, message: result.success ? 'Money sent to Bank Account successfully.' : result.message };
+): Promise<{ success: boolean; message: string; redirectUrl?: string; transaction?: Transaction }> => {
+  logger.info(`Attempting to send money to Bank Account via Fapshi from card ${cardId}, amount: ${amount}`);
+  try {
+    const creditCard = await CreditCard.findByPk(cardId);
+    if (!creditCard) {
+      return { success: false, message: 'Credit card not found.' };
+    }
+    if (new Decimal(creditCard.currentBalance).lessThan(amount)) {
+      return { success: false, message: 'Insufficient funds on card.' };
+    }
+
+    const currency = 'XAF';
+    const clientRef = `send_bank_${cardId}_${Date.now()}`;
+    const redirectUrl = `http://localhost:3000/payment-status?cardId=${cardId}`;
+    const webhookUrl = 'http://your-server.com/fapshi-webhook';
+
+    const fapshiResult = await createFapshiTransaction(
+      amount,
+      currency,
+      description,
+      clientRef,
+      redirectUrl,
+      webhookUrl,
+      FapshiPaymentMethod.BANK_TRANSFER
+    );
+
+    if (fapshiResult.success && fapshiResult.redirectUrl) {
+      await creditCard.update({ currentBalance: new Decimal(creditCard.currentBalance).minus(amount).toFixed(2) });
+
+      const transaction = await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TRANSFER,
+        status: TransactionStatus.PENDING,
+        description: `Fapshi Bank Account Send: ${description}`,
+        merchant: 'Bank Transfer',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+        gatewayTransactionId: fapshiResult.transactionId,
+      });
+      return { ...fapshiResult, transaction };
+    } else {
+      await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.TRANSFER,
+        status: TransactionStatus.FAILED,
+        description: `Fapshi Bank Account Send failed: ${description}`,
+        merchant: 'Bank Transfer',
+        recipientDetails,
+        paymentGateway: PaymentGateway.FAPSHI,
+      });
+      return { success: false, message: fapshiResult.message };
+    }
+  } catch (error: any) {
+    logger.error(`Error in sendToBankAccount (Fapshi):`, error.message);
+    return { success: false, message: error.message };
+  }
 };
 
 export const processCardPayment = async (
@@ -161,11 +464,62 @@ export const processCardPayment = async (
   cardId: number,
   description: string,
   merchant: string,
-  recipientDetails?: string,
-): Promise<{ success: boolean; message: string; transaction?: Transaction }> => {
-  logger.info(`Attempting card payment for card ${cardId}, amount: ${amount} to ${merchant}`);
-  const result = await simulatePaymentGateway(TransactionType.DEBIT, amount, cardId, description, merchant, recipientDetails);
-  return { ...result, message: result.success ? 'Card payment processed successfully.' : result.message };
+): Promise<{ success: boolean; message: string; redirectUrl?: string; transaction?: Transaction }> => {
+  logger.info(`Attempting card payment via Fapshi for card ${cardId}, amount: ${amount} to ${merchant}`);
+  try {
+    const creditCard = await CreditCard.findByPk(cardId);
+    if (!creditCard) {
+      return { success: false, message: 'Credit card not found.' };
+    }
+    if (new Decimal(creditCard.currentBalance).lessThan(amount)) {
+      return { success: false, message: 'Insufficient funds on card.' };
+    }
+
+    const currency = 'XAF';
+    const clientRef = `card_payment_${cardId}_${Date.now()}`;
+    const redirectUrl = `http://localhost:3000/payment-status?cardId=${cardId}`;
+    const webhookUrl = 'http://your-server.com/fapshi-webhook';
+
+    const fapshiResult = await createFapshiTransaction(
+      amount,
+      currency,
+      description,
+      clientRef,
+      redirectUrl,
+      webhookUrl,
+      FapshiPaymentMethod.CREDIT_CARD
+    );
+
+    if (fapshiResult.success && fapshiResult.redirectUrl) {
+      await creditCard.update({ currentBalance: new Decimal(creditCard.currentBalance).minus(amount).toFixed(2) });
+
+      const transaction = await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.DEBIT,
+        status: TransactionStatus.PENDING,
+        description: `Fapshi Card Payment: ${description}`,
+        merchant,
+        paymentGateway: PaymentGateway.FAPSHI,
+        gatewayTransactionId: fapshiResult.transactionId,
+      });
+      return { ...fapshiResult, transaction };
+    } else {
+      await Transaction.create({
+        cardId,
+        amount,
+        type: TransactionType.DEBIT,
+        status: TransactionStatus.FAILED,
+        description: `Fapshi Card Payment failed: ${description}`,
+        merchant,
+        paymentGateway: PaymentGateway.FAPSHI,
+      });
+      return { success: false, message: fapshiResult.message };
+    }
+  } catch (error: any) {
+    logger.error(`Error in processCardPayment (Fapshi):`, error.message);
+    return { success: false, message: error.message };
+  }
 };
 
 export const getTransactionsByCardId = async (cardId: number): Promise<Transaction[]> => {

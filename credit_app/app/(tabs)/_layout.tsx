@@ -63,6 +63,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="paymentStatus"
+        options={{
+          href: null, // Hide from tab bar
+          headerShown: true, // Show header for this screen
+          title: 'Payment Status',
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
